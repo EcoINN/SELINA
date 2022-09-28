@@ -1,3 +1,3 @@
 ## Nature-based tourism in Malta
 
-Repository for SELINAs DP.
+Ecostack Innovations's repository for SELINAs DP.
