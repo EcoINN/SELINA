@@ -1,25 +1,49 @@
+#' ---
+#' title: "Twitter spatial analysis"
+#' author: EcoINN
+#' date: "September 2022"
+#' output: 
+#' ---
 
-# packages
+
+
+
+#### preparation of the script ####
+
+
+# set folder
+setwd("C:/Ecostack/Selina/output")
+
+# load the required packages
+
+if( !("rjson" %in% installed.packages()[,1]))
+  install.packages("rjson")
+library(rjson)
+
+if( !("dplyr" %in% installed.packages()[,1]))
+  install.packages("dplyr")
 library(dplyr)
-library(twitterR)
+
+if( !("httr" %in% installed.packages()[,1]))
+  install.packages("httr")
+library(httr)
+
+if( !("rtweet" %in% installed.packages()[,1]))
+  install.packages("rtweet")
 library(rtweet)
 
-# creating 
-API_key = "" 
-API_secret = ""
-Access_token = ""
-Access_secret = ""
 
-# establish connection
-setup_twitter_oauth(API_key,API_secret,Access_token,Access_secret)
 
-# make a search and convert tweets into a data frame using twListToDF function
-malta_raw <- searchTwitter("Malta", n=500, since="2021-01-01", until="2021-12-31")
-malta_df <- malta_raw %>% 
-  strip_retweets() %>%
-  twListToDF()
+#### connect to twitter ####
 
-malta_df <- malta_df %>%
-  select(text,favoriteCount,created,truncated,longitude,latitude)
+# connect to twitter
+auth_setup_default()
 
-knitr::kable(malta_df[1:3,], format="markdown")
+#### search tweets ####
+
+# create a df 
+# this is just a test 
+df <- search_tweets2(c("#Malta", "#nature"),
+                    since_id="2022-09-21", max_id="2022-09-26",
+                    n=10, include_rts=FALSE)
+
