@@ -23,11 +23,6 @@ if( !("academictwitteR" %in% installed.packages()[,1]))
   install.packages("academictwitteR")
 library(academictwitteR)
 
-if( !("tidyverse" %in% installed.packages()[,1]))
-  install.packages("tidyverse")
-library(tidyverse)
-
-
 
 #### connect to twitter ####
 
@@ -44,16 +39,20 @@ bearer_token <- tokens$Bearer
 
 # query
 query <- build_query(query = "#malta #nature #travel", 
+                     country = 'Malta',
                      is_retweet = FALSE,
-                     has_media = TRUE,
-                     has_images = TRUE)
+                     remove_promoted = TRUE,
+                     has_media = NULL,
+                     has_images = NULL,
+                     has_videos = NULL,
+                     has_geo = NULL)
 
 # get tweets
 tweets <-  get_all_tweets(query = query,
                           start_tweets = "2021-01-01T00:00:00Z",
                           end_tweets = "2021-12-31T00:00:00Z",
                           data_path = "C:/Ecostack/Selina/selina/output",
-                          n = 10,
+                          n = 1000,
                           bearer_token = bearer_token)
 
 View(tweets)
@@ -61,4 +60,6 @@ View(tweets)
 
 #### inspect data ####
 
-tw_json <- bind_tweets(data_path = "C:/Ecostack/Selina/selina/output")
+tw_json <- bind_tweets(data_path = "C:/Ecostack/Selina/selina/output", 
+                       user = TRUE, 
+                       output_format = "tidy")
