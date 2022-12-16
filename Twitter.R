@@ -38,7 +38,7 @@ bearer_token <- tokens$Bearer
 
 
 # Build a query
-query <- build_query(query = c('malta', 'nature', 'gozo', 'beach', 'visitmalta'), 
+query <- build_query(query = c('malta', 'nature', 'gozo', 'beach', 'visitmalta', 'comino'), 
                      country = "MT",
                      #point_radius = c(14.37672500, 35.92161111, 25),
                      is_retweet = FALSE,
@@ -249,7 +249,7 @@ unlist.col1
 
 
 
-# cleanup & and filter to just the time period around the flood
+# cleanup & and filter
 mt_tweets <- tweet_data %>%
   mutate(geo.coordinates = gsub("\\)|c\\(", "", geo.coordinates)) %>%
   separate(geo.coordinates, c("long", "lat"), sep = ", ") %>%

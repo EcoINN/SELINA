@@ -4,11 +4,7 @@
 #' Date: "November 2022"
 #' Output: Functions for the Twitter script
 #' ---
-#' The function df_tweets is based on the function bind_tweets of the academictwitteR package.
-#' Title: academictwitteR
-#' Author: Twitter API v2
-#' Source code: https://github.com/cjbarrie/academictwitteR/blob/master/R/bind_tweets.R
-#' 
+ 
 
 
 # This function binds information stored as JSON files. The experimental function `convert_json` converts individual JSON files into either "raw" or "tidy" format.
