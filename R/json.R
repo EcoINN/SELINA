@@ -26,12 +26,3 @@ import_json <- function(json_file){
                            #hashtag = file_json$entities$hashtags
                            )
 }
-
-
-
-
-
-
-
-
-
