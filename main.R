@@ -26,7 +26,7 @@ library(ggthemes)
 
 
 #### Preparing script ####
-# Loading supporting R-scripts
+# Loading supporting r-scripts
 invisible(sapply(list.files('./src', full.names = T), source))
 
 # Define data and output directories
@@ -40,14 +40,24 @@ bearer_token <- tokens$Bearer
 
 
 #### Get tweets ####
+# Keywords
+keywords <- c('malta', 'gozo', 'comino', 'island', 'visitmalta', 'mymalta',
+              'sea', 'beach', 'seascape', 'sealife', 'seagrass', 'marinelife',
+              'coast', 'coral', 'fish', 'maltacountryside', 'lanscape', 'bees',
+              'butterflies', 'insects', 'agriculture', 'bird', 'soil', 'diving',
+              'scubadiving', 'unserwaterphotography', 'fishing', 'maltawalks',
+              'wildlifephotography', 'hiking', 'beachphotography', 'trekking',
+              'birdwatching', 'birdphotography', 'agritourism', 'tourism', 
+              'biodiversity', 'travelphoto', 'explore', 'photography', 'winter',
+              'ecology', 'summer', 'nature', 'naturephotography', 'ecoturism',
+              'culture', 'history')
+
 # Build a query
-query <- build_query(query = c('malta', 'nature', 'gozo', 
-                               'beach', 'visitmalta', 'comino'), 
+query <- build_query(query = keywords, 
                      country = "MT",
-                     #point_radius = c(14.37672500, 35.92161111, 25),
+                     #point_radius = c(14.37672500, 35.92161111, 25)
                      is_retweet = FALSE,
-                     #remove_promoted = TRUE,
-                     has_media = NULL,
+                     has_media = TRUE,
                      has_images = NULL,
                      has_videos = NULL,
                      has_geo = NULL)
@@ -57,7 +67,7 @@ tweets <-  get_all_tweets(query = query,
                           start_tweets = "2015-01-01T00:00:00Z",
                           end_tweets = "2022-12-31T00:00:00Z",
                           data_path = "C:/Ecostack/Selina/selina/data",
-                          #n = 10,
+                          n = Inf,
                           bearer_token = bearer_token)
 
 View(tweets)
@@ -66,7 +76,7 @@ View(tweets)
 
 #### JSON to tidy and raw format ####
 # convert json into a tidy format 
-tw_json <- bind_tweets(data_path = "C:/Ecostack/Selina/selina/data", 
+tw_tidy <- bind_tweets(data_path = "C:/Ecostack/Selina/selina/data", 
                        user = TRUE, 
                        output_format = "tidy")
 
