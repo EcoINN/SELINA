@@ -33,14 +33,9 @@ invisible(sapply(list.files('./src', full.names = T), source))
 datdir <- 'data/'
 outdir <- 'output/'
 
-# Connect to twitter
-json_file <- "./keys/TwitterKeys.json"
-tokens <- fromJSON(json_file)
-bearer_token <- tokens$Bearer
-
-
-#### Get tweets ####
-# Keywords
+# Data needed
+json_file <- "./keys/TwitterKeys.json" # Twitter keys
+country <- "MT"
 keywords <- c('malta', 'gozo', 'comino', 'island', 'visitmalta', 'mymalta',
               'sea', 'beach', 'seascape', 'sealife', 'seagrass', 'marinelife',
               'coast', 'coral', 'fish', 'maltacountryside', 'lanscape', 'bees',
@@ -50,12 +45,19 @@ keywords <- c('malta', 'gozo', 'comino', 'island', 'visitmalta', 'mymalta',
               'birdwatching', 'birdphotography', 'agritourism', 'tourism', 
               'biodiversity', 'travelphoto', 'explore', 'photography', 'winter',
               'ecology', 'summer', 'nature', 'naturephotography', 'ecoturism',
-              'culture', 'history')
+              'culture', 'history') # Twitter keywords
+start_date <- "2015-01-01T00:00:00Z"
+end_date <- "2022-12-31T00:00:00Z"
+
+
+#### Get tweets ####
+# Connect to twitter
+tokens <- fromJSON(json_file)
+bearer_token <- tokens$Bearer
 
 # Build a query
 query <- build_query(query = keywords, 
-                     country = "MT",
-                     #point_radius = c(14.37672500, 35.92161111, 25)
+                     country = country,
                      is_retweet = FALSE,
                      has_media = TRUE,
                      has_images = NULL,
@@ -64,13 +66,29 @@ query <- build_query(query = keywords,
 
 # Get tweets
 tweets <-  get_all_tweets(query = query,
-                          start_tweets = "2015-01-01T00:00:00Z",
-                          end_tweets = "2022-12-31T00:00:00Z",
-                          data_path = "C:/Ecostack/Selina/selina/data",
+                          start_tweets = start_date,
+                          end_tweets = end_date,
+                          data_path = datdir,
                           n = Inf,
                           bearer_token = bearer_token)
 
 View(tweets)
+
+# Save as df
+df_tweets <- data.frame(tweets)
+
+test <- common_words(df_tweets)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
