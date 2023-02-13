@@ -8,7 +8,7 @@
 
 
 # This function explores common words found on tweets
-process_df <- function(df, lang = "en") {
+common_words <- function(df, lang = "en") {
   # Extract the URLs from the text column
   df <- df %>% 
     mutate(url = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>% 
