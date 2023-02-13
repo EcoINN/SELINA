@@ -8,33 +8,40 @@
 
 
 # This function explores common words found on tweets
-common_words <- function(tweet_data) {
-  # get a list of words
-  tweet_data_messages <- tweet_data %>%
-    dplyr::select(tweet_text) %>%
-    unnest_tokens(word, tweet_text)
-  head(tweet_data_messages)
+process_df <- function(df, lang = "en") {
+  # Extract the URLs from the text column
+  df <- df %>% 
+    mutate(url = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>% 
+    mutate(text = gsub("(https?://t\\.co/[^[:space:]]+)", "", text))
   
-  # remove stop words
-  data("stop_words")
-  tweet_clean <- tweet_data_messages %>%
-    anti_join(stop_words) %>%
-    filter(!word == "rt")
+  # Filter the df based on the value of the 'lang' column
+  df_ft <- df %>% 
+    filter(lang == lang)
+  
+  # Replace '&amp;' for 'and'
+  df_ft$text <- gsub("&amp;", "and", df_ft$text)
+  
+  # Clean and preprocess the data
+  df_text <- df_ft %>% 
+    select(text) %>% 
+    unnest_tokens(word, text) %>% 
+    anti_join(stop_words) 
   
   # remove https
-  tweet_clean <- tweet_data %>%
+  tweet_clean <- df_ft %>%
     mutate(tweet_text = gsub("\\s?(f|ht)(tp)(s?)(://)([^\\.]*)[\\.|/](\\S*)", 
-                             "", tweet_text)) %>%  
-    dplyr::select(tweet_text) %>%
-    unnest_tokens(word, tweet_text) %>% 
+                             "", text)) %>%  
+    dplyr::select(text) %>%
+    unnest_tokens(word, text) %>% 
     anti_join(stop_words) %>%
     filter(!word == "rt") # remove all rows that contain "rt" or retweet
   
+  return(tweet_clean)
 }
 
 
 # This function plots the most common words
-plot_words <- function(tweet_clean) {
+plot_words <- function(tweet_clean, x = x, y=y, title=title) {
   # plot the top 15 words
   tweet_clean %>%
     count(word, sort = TRUE) %>%
@@ -44,9 +51,9 @@ plot_words <- function(tweet_clean) {
     geom_col() +
     xlab(NULL) +
     coord_flip() +
-    labs(x = "Count",
-         y = "Unique words",
-         title = "Count of unique words found in tweets")
+    labs(x = x,
+         y = y,
+         title = title)
 }
 
 
