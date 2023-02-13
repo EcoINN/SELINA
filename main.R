@@ -13,7 +13,6 @@ library(academictwitteR)
 library(tidytext)
 
 
-#### Preparing script ####
 # Loading supporting r-scripts
 invisible(sapply(list.files('./src', full.names = T), source))
 
@@ -37,58 +36,21 @@ keywords <- c('malta', 'gozo', 'comino', 'island', 'visitmalta', 'mymalta',
 start_date <- "2015-01-01T00:00:00Z"
 end_date <- "2022-12-31T00:00:00Z"
 
-
-#### Get tweets ####
-# Connect to twitter
-tokens <- fromJSON(json_file)
-bearer_token <- tokens$Bearer
-
-# Build a query
-query <- build_query(query = keywords, 
-                     country = country,
-                     is_retweet = FALSE,
-                     has_media = TRUE,
-                     has_images = NULL,
-                     has_videos = NULL,
-                     has_geo = NULL)
-
-# Get tweets
-tweets <-  get_all_tweets(query = query,
-                          start_tweets = start_date,
-                          end_tweets = end_date,
-                          data_path = datdir,
-                          n = Inf,
-                          bearer_token = bearer_token)
-
+# Connect to twitter and get tweets
+tweets <- get_tweets(json_file, keywords, country, start_date, end_date, datdir)
 View(tweets)
 
 # Save as df
 df <- data.frame(tweets)
 
 
-#### Twitter analysis ####
-# Extract the URLs from the text column
-df <- df %>% 
-  mutate(url = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>% 
-  mutate(text = gsub("(https?://t\\.co/[^[:space:]]+)", "", text))
 
-# Clean and preprocess the data
-df_text <- df %>% 
-  select(text) %>% 
-  unnest_tokens(word, text) %>% 
-  anti_join(stop_words) %>% 
-  filter(!word %in% c("rt", "&amp"))
-
-# remove https
-tweet_clean <- df %>%
-  mutate(tweet_text = gsub("\\s?(f|ht)(tp)(s?)(://)([^\\.]*)[\\.|/](\\S*)", 
-                           "", text)) %>%  
-  dplyr::select(text) %>%
-  unnest_tokens(word, text) %>% 
-  anti_join(stop_words) %>%
-  filter(!word == "rt") # remove all rows that contain "rt" or retweet
+# Twitter analysis
+# df preprocessing
+df_mt <- common_words(df)
 
 # Plot words
-plot_words(tweet_clean)
+plot_words(df_mt, x = 'Count', y = 'Unique words' , 
+           title = 'Count of unique words found in tweets')
 
 
