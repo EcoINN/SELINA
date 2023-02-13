@@ -13,7 +13,6 @@ library(academictwitteR)
 library(tidytext)
 
 
-
 #### Preparing script ####
 # Loading supporting r-scripts
 invisible(sapply(list.files('./src', full.names = T), source))
@@ -68,12 +67,10 @@ df <- data.frame(tweets)
 
 
 #### Twitter analysis ####
-
 # Extract the URLs from the text column
 df <- df %>% 
   mutate(url = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>% 
   mutate(text = gsub("(https?://t\\.co/[^[:space:]]+)", "", text))
-
 
 # Clean and preprocess the data
 df_text <- df %>% 
