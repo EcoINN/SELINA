@@ -52,8 +52,7 @@ df_mt <- preprocess(df)
 df_mt <- df_clean(df_mt)
 
 # save as xls
-# write.xlsx(df_mt, "./output/tweets_df.xlsx")
-
+write.xlsx(df_mt, "./output/tweets_df.xlsx")
 
 # Twitter analysis
 # Explore common words found on tweets, and plot
@@ -65,3 +64,25 @@ plot_words(c_words, x = 'Count', y = 'Unique words' ,
 p_analysis <- tweet_bigrams(df_mt)
 plot_paired_words(p_analysis, title="Paired word analysis", 
                   subtitle="Twitter ", 20)
+
+
+
+
+
+# remove na values
+tweet_locations <- df_mt %>%
+  na.omit()
+head(tweet_locations)
+
+tw_locations <- tweet_locations %>% rename("long" = "coordinates.1",
+                                           "lat" = "coordinates.2")
+
+# plot points on top of a leaflet basemap
+
+site_locations_base <- leaflet(tw_locations) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(lng = ~long, lat = ~lat, popup = ~text,
+                   radius = 3, stroke = FALSE)
+
+site_locations_base
+
