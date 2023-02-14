@@ -52,7 +52,7 @@ df_mt <- preprocess(df)
 df_mt <- df_clean(df_mt)
 
 # save as xls
-write.xlsx(df_mt, "./output/tweets_df.xlsx")
+# write.xlsx(df_mt, "./output/tweets_df.xlsx")
 
 
 # Twitter analysis
