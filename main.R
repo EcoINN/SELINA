@@ -13,6 +13,7 @@ library(academictwitteR)
 library(tidytext)
 library(ggraph)
 library(tidyverse)
+library(leaflet)
 
 # Prepare script
 # Loading supporting r-scripts
@@ -65,24 +66,6 @@ p_analysis <- tweet_bigrams(df_mt)
 plot_paired_words(p_analysis, title="Paired word analysis", 
                   subtitle="Twitter ", 20)
 
-
-
-
-
-# remove na values
-tweet_locations <- df_mt %>%
-  na.omit()
-head(tweet_locations)
-
-tw_locations <- tweet_locations %>% rename("long" = "coordinates.1",
-                                           "lat" = "coordinates.2")
-
-# plot points on top of a leaflet basemap
-
-site_locations_base <- leaflet(tw_locations) %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(lng = ~long, lat = ~lat, popup = ~text,
-                   radius = 3, stroke = FALSE)
-
-site_locations_base
-
+# plot coordinates
+tw_map <- maps(df_mt)
+tw_map
