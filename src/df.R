@@ -18,7 +18,7 @@ preprocess <- function(df) {
   # Select unique rows based on the text column only
   df_u <- df_tw %>% distinct(text, .keep_all=TRUE)
   
-  return(df)
+  return(df_u)
 }
 
 
@@ -35,6 +35,9 @@ df_clean <- function(df) {
   # Replace '&amp;' for 'and'
   df_ft$text <- gsub("&amp;", "and", df_ft$text)
   
-  return(df_ft)
+  # Unlist coordinates
+  df_tw <- df_ft %>% unpack(geo.coordinates) %>% unnest_wider(coordinates, names_sep = '.')
+
+  return(df_tw)
 }
 
