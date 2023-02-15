@@ -23,7 +23,7 @@ maps <- function(df) {
   tw_locations <- tweet_locations %>% rename("long" = "coordinates.1",
                                              "lat" = "coordinates.2")
   # Plot points on top of a leaflet basemap
-    site_locations_base <- leaflet(tw_locations) %>%
+  site_locations_base <- leaflet(tw_locations) %>%
     addProviderTiles("CartoDB.Positron") %>%
     addCircleMarkers(lng = ~long, lat = ~lat, popup = ~text,
                      radius = 3, stroke = FALSE)
