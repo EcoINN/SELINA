@@ -9,7 +9,14 @@
 
 
 preprocess <- function(df) {
-  # This function creates a df with the necessary information for this study
+  # Creates a df with the necessary information for this study
+  #
+  # Args:
+  #    df: A df containing the tweets 
+  #
+  # Returns: 
+  #    A df with only unique tweets and a text, land, geo and date columns 
+  #
   df_tw <- do.call(rbind,lapply(df, function (m)
     data.frame(text = df$text,
                lang = df$lang,
@@ -23,6 +30,14 @@ preprocess <- function(df) {
 
 
 df_clean <- function(df) {
+  # Cleans the df and extracts coordinates
+  #
+  # Args:
+  #    df: Th
+  #
+  # Returns: 
+  #    A df with only unique tweets and a text, land, geo and date columns 
+  #
   # Extract the URLs from the text column
   df <- df %>% 
     mutate(url = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>% 
