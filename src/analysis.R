@@ -28,22 +28,6 @@ common_words <- function(df_ft) {
 }
 
 
-plot_words <- function(tweet_clean, x = x, y=y, title=title, no) {
-  # This function plots the most common words
-  tweet_clean %>%
-    count(word, sort = TRUE) %>%
-    top_n(no) %>%
-    mutate(word = reorder(word, n)) %>%
-    ggplot(aes(x = word, y = n)) +
-    geom_col() +
-    xlab(NULL) +
-    coord_flip() +
-    labs(x = x,
-         y = y,
-         title = title)
-}
-
-
 tweet_bigrams <- function(df_ft) {
   # This function performs a paired word analysis
   # Remove stop words from the text column and remove RT, http
@@ -67,19 +51,4 @@ tweet_bigrams <- function(df_ft) {
     count(word1, word2, sort = TRUE)
   
   return(word_counts)
-}
-
-
-plot_paired_words <- function(word_counts, title=title, subtitle=subtitle, no) {
-  # This function plots the result of the paired word analysis
-  word_counts %>%
-    filter(n >= no) %>%
-    graph_from_data_frame() %>%
-    ggraph(layout = "fr") +
-    geom_node_point(color = "darkslategray4", size = 3) +
-    geom_node_text(aes(label = name), vjust = 1.8, size = 3) +
-    labs(title = title,
-         subtitle = subtitle,
-         x = "", y = "") +
-    theme_void()
 }
