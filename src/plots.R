@@ -34,6 +34,17 @@ maps <- function(df) {
 
 plot_words <- function(tweet_clean, x = x, y=y, title=title, no) {
   # This function plots the most common words
+  #
+  # Args:
+  #    tweet_clean: A df with a column containing all the words
+  #    x: Title for the x axis
+  #    y: Title for the y axis
+  #    title: The title for the plot
+  #    no: Number of words to show in the plot
+  #
+  # Returns: 
+  #    A plot of the common words
+  #
   tweet_clean %>%
     count(word, sort = TRUE) %>%
     top_n(no) %>%
@@ -50,6 +61,15 @@ plot_words <- function(tweet_clean, x = x, y=y, title=title, no) {
 
 plot_paired_words <- function(word_counts, title=title, subtitle=subtitle, no) {
   # This function plots the result of the paired word analysis
+  #
+  # Args:
+  #    word_counts: A df with a column containing all the words
+  #    title: The title for the plot
+  #    no: Number of paired words to show in the plot
+  #
+  # Returns: 
+  #    A plot of the paired words
+  #
   word_counts %>%
     filter(n >= no) %>%
     graph_from_data_frame() %>%
