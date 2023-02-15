@@ -7,31 +7,39 @@
 #' 
 
 
-common_words <- function(df_ft) {
+common_words <- function(df) {
   # This function explores common words found on tweets
+  #
+  # Args:
+  #    df_ft: A cleaned data frame
+  #
+  # Returns: 
+  #    A df with only one column containing all the words
+  #
   # Clean and preprocess the data
-  df_text <- df_ft %>% 
-    select(text) %>% 
-    unnest_tokens(word, text) %>% 
-    anti_join(stop_words) 
-  
-  # remove https
-  tweet_clean <- df_ft %>%
+  tweet_clean <- df %>%
     mutate(tweet_text = gsub("\\s?(f|ht)(tp)(s?)(://)([^\\.]*)[\\.|/](\\S*)", 
                              "", text)) %>%  
     dplyr::select(text) %>%
     unnest_tokens(word, text) %>% 
     anti_join(stop_words) %>%
-    filter(!word == "rt") # remove all rows that contain "rt" or retweet
+    filter(!word == "rt")
   
   return(tweet_clean)
 }
 
 
-tweet_bigrams <- function(df_ft) {
-  # This function performs a paired word analysis
+tweet_bigrams <- function(df) {
+  # This function explores common words found on tweets
+  #
+  # Args:
+  #    df_ft: A cleaned data frame
+  #
+  # Returns: 
+  #    A df with the words
+  #
   # Remove stop words from the text column and remove RT, http
-  tweets_paired <- df_ft %>%
+  tweets_paired <- df %>%
     dplyr::select(text) %>%
     mutate(text = stringr::str_remove_all(text, stop_words$word)) %>%
     mutate(text = stringr::str_replace_all(text, "\\brt\\b|\\bRT\\b", "")) %>%
