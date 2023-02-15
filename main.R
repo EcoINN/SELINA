@@ -15,6 +15,7 @@ library(ggraph)
 library(tidyverse)
 library(leaflet)
 
+
 # Prepare script
 # Loading supporting r-scripts
 invisible(sapply(list.files('./src', full.names = T), source))
@@ -25,17 +26,8 @@ outdir <- 'output/'
 
 # Data needed
 json_file <- "./keys/TwitterKeys.json" # Twitter keys
+keywords <- fromJSON(file = "./keys/Keywords.json") # Twitter keywords
 country <- "MT"
-keywords <- c('malta', 'gozo', 'comino', 'island', 'visitmalta', 'mymalta',
-              'sea', 'beach', 'seascape', 'sealife', 'seagrass', 'marinelife',
-              'coast', 'coral', 'fish', 'maltacountryside', 'lanscape', 'bees',
-              'butterflies', 'insects', 'agriculture', 'bird', 'soil', 'diving',
-              'scubadiving', 'unserwaterphotography', 'fishing', 'maltawalks',
-              'wildlifephotography', 'hiking', 'beachphotography', 'trekking',
-              'birdwatching', 'birdphotography', 'agritourism', 'tourism', 
-              'biodiversity', 'travelphoto', 'explore', 'photography', 'winter',
-              'ecology', 'summer', 'nature', 'naturephotography', 'ecoturism',
-              'culture', 'history') # Twitter keywords
 start_date <- "2015-01-01T00:00:00Z"
 end_date <- "2022-12-31T00:00:00Z"
 
@@ -54,6 +46,7 @@ df_mt <- df_clean(df_mt)
 
 # save as xls
 write.xlsx(df_mt, "./output/tweets_df.xlsx")
+
 
 # Twitter analysis
 # Explore common words found on tweets, and plot
