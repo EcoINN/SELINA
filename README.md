@@ -1,11 +1,17 @@
 ## Nature-based tourism in Malta
 
-Ecostack Innovations's repository for SELINAs DP.
+Ecostack Innovations's repository for SELINAs Demonstration Project (DP).
 Ecostack Innovations: https://www.ecostackinnovations.com/
 
 
-## Description
-...
+### Demonstration Project
+This project is about developing a more comprehensive understanding of nature-based tourism in Malta, and how the enjoyment of nature and nature-based recreation provide a wide range of benefits for individuals and communities. Therefore, this research assesses and maps sites and experiences associated with high natural capital value and associated with landscapes of unique social-ecological value.
+
+### Methodology
+The identification of nature-based places and experiences chosen by tourists is being carried out by using social media. The research technique begins with the collection of Twitter data via the Twitter API for Academic Research Access to get historical data.
+
+### Results
+Through the analysis carried out in this project, we will create an interactive map with places and experiences for nature-based tourism. 
 
 
 ## Note on Twitter API v2
