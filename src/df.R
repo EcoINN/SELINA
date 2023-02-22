@@ -7,52 +7,39 @@
 #' 
 
 
-
-preprocess <- function(df) {
+process_tweets <- function(tweets_df) {
   # Creates a df with the necessary information for this study
   #
   # Args:
-  #    df: A df containing the tweets 
+  #    tweets_df: A df containing the tweets 
   #
   # Returns: 
-  #    A df with only unique tweets and a text, land, geo and date columns 
+  #    A df with only unique tweets 
   #
-  df_tw <- do.call(rbind,lapply(df, function (m)
-    data.frame(text = df$text,
-               lang = df$lang,
-               geo = df$geo,
-               date = df$created_at)))
-  # Select unique rows based on the text column only
-  df_u <- df_tw %>% distinct(text, .keep_all=TRUE)
+  # Check for necessary columns
+  req_cols <- c("text", "lang", "entities.urls", "author_id", "created_at",
+                "geo.coordinates.coordinates")
+  missing_cols <- setdiff(req_cols, colnames(tweets_df))
+  if (length(missing_cols) > 0) {
+    stop(paste0("Missing required columns: ", paste(missing_cols, 
+                                                    collapse = ", ")))
+  }
   
-  return(df_u)
+  tweets <- tweets_df %>%
+    unnest_wider(geo.coordinates.coordinates, names_sep = '.') %>%
+    unnest_wider(entities.urls) %>%
+    select(author_id, text, lang, created_at, 
+           geo.coordinates.coordinates.1, geo.coordinates.coordinates.2, 
+           url, expanded_url, display_url, media_key) %>%
+    distinct(text, .keep_all=TRUE) %>%
+    mutate(url1 = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>%
+    mutate(text = gsub("(https?://t\\.co/[^[:space:]]+)", "", text)) %>%
+    filter(lang == "en") %>%
+    mutate(text = gsub("&amp;", "and", text)) %>%
+    select(-url1) %>%
+    mutate(hashtags = sapply(str_extract_all(text, "#\\w+"), 
+                             function(x) str_c(unlist(x), collapse = " "))) %>%
+    mutate(hashtags = ifelse(hashtags == "", NA , hashtags))
+  
+  return(tweets)
 }
-
-
-df_clean <- function(df) {
-  # Cleans the df and extracts coordinates
-  #
-  # Args:
-  #    df: Th
-  #
-  # Returns: 
-  #    A df with only unique tweets and a text, land, geo and date columns 
-  #
-  # Extract the URLs from the text column
-  df <- df %>% 
-    mutate(url = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>% 
-    mutate(text = gsub("(https?://t\\.co/[^[:space:]]+)", "", text))
-  
-  # Filter the df based on the value of the 'lang' column
-  df_ft <- df %>% 
-    filter(lang == "en")
-  
-  # Replace '&amp;' for 'and'
-  df_ft$text <- gsub("&amp;", "and", df_ft$text)
-  
-  # Unlist coordinates
-  df_tw <- df_ft %>% unpack(geo.coordinates) %>% unnest_wider(coordinates, names_sep = '.')
-
-  return(df_tw)
-}
-
