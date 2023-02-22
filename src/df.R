@@ -24,12 +24,14 @@ process_tweets <- function(tweets_df) {
     stop(paste0("Missing required columns: ", paste(missing_cols, 
                                                     collapse = ", ")))
   }
+  print("This may take a couple of minutes...")
   
   tweets <- tweets_df %>%
     unnest_wider(geo.coordinates.coordinates, names_sep = '.') %>%
     unnest_wider(entities.urls) %>%
     select(author_id, text, lang, created_at, 
-           geo.coordinates.coordinates.1, geo.coordinates.coordinates.2, 
+           longitude = geo.coordinates.coordinates.1, 
+           latitude = geo.coordinates.coordinates.2, 
            url, expanded_url, display_url, media_key) %>%
     distinct(text, .keep_all=TRUE) %>%
     mutate(url1 = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>%
