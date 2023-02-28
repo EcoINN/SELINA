@@ -47,7 +47,7 @@ process_tweets <- function(tweets_df) {
 }
 
 
-remove_rows_with_words <- function(df, words) {
+remove_rows <- function(df, words) {
   # Create a function to remove rows containing certain words in a dataframe
   #
   # Args:
