@@ -45,3 +45,42 @@ process_tweets <- function(tweets_df) {
   
   return(tweets)
 }
+
+
+remove_rows <- function(df, words) {
+  # Creates a df with the necessary information for this study
+  #
+  # Args:
+  #    df: A df containing the tweets 
+  #    words: The words to find within the text
+  # Returns: 
+  #    A df - removes all the rows containing the words in the arg
+  #
+  df[!grepl(paste(words, collapse = "|"), 
+            df$text, ignore.case = TRUE), ]
+  
+  return(df)
+}
+
+
+remove_rows_with_words <- function(df, words) {
+  # Create a function to remove rows containing certain words in a dataframe
+  #
+  # Args:
+  #    df: A df containing the tweets 
+  #    words: The words to find within the text
+  #
+  # Returns: 
+  #    A modified df
+  #
+  # Create a logical vector indicating which rows contain the words to remove
+  rows_to_remove <- grepl(paste(words, collapse = "|"), 
+                          df$text, 
+                          ignore.case = TRUE)
+  
+  # Remove the rows from the dataframe
+  df <- df[!rows_to_remove, ]
+  
+  # Return the modified dataframe
+  return(df)
+}
