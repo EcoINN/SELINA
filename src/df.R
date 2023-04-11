@@ -83,21 +83,39 @@ process_urls <- function(df) {
   # Returns: 
   #    A df with filtered URLs
   #
-  # Split the 'expanded_url' column by "," and create new columns
-  df <- df %>%
-    separate(expanded_url, into = paste0("url_", 1:5), sep = ",", 
-             remove = FALSE, extra = "merge", fill = "right") %>%
-    select(-expanded_url)
+  # Remove rows with empty cells in the 'expanded_url' column
+  df <- df[!sapply(df$expanded_url, is.null),]
   
-  # Create a function to filter out URLs without the word 'photo'
-  filter_photo_urls <- function(url_col) {
-    ifelse(grepl("photo", url_col, ignore.case = TRUE), url_col, NA)
+  # Create a function to filter and separate URLs containing '/photo/' or 'instagram'
+  filter_urls <- function(cell) {
+    valid_urls <- cell[grepl("\\/photo\\/|instagram", cell, ignore.case = TRUE)]
+    return(valid_urls)
   }
   
-  # Apply the function to each new URL column
-  for (col_name in colnames(df)[startsWith(colnames(df), "url_")]) {
-    df[[col_name]] <- sapply(df[[col_name]], filter_photo_urls)
+  # Apply the function to the 'expanded_url' column
+  df$expanded_url <- lapply(df$expanded_url, filter_urls)
+  
+  # Find the maximum number of URLs in a single cell
+  max_urls <- max(sapply(df$expanded_url, length))
+  
+  # Create new columns for the URLs
+  for (i in 1:max_urls) {
+    column_name <- paste0("url_", i)
+    df[[column_name]] <- sapply(df$expanded_url, function(x) {
+      if (length(x) >= i) {
+        return(x[i])
+      } else {
+        return(NA)
+      }
+    })
   }
+  
+  # Remove the original 'expanded_url' column
+  # df$expanded_url <- NULL
+  
+  # Remove rows with no URLs in all the new URL columns
+  url_columns <- paste0("url_", 1:max_urls)
+  df <- df[rowSums(is.na(df[, url_columns])) != max_urls, ]
   
   return(df)
 }
