@@ -7,7 +7,7 @@
 #' 
 
 
-process_tweets <- function(tweets_df) {
+process_tweets <- function(tweets_df, similarity_threshold = 0.8) {
   # Creates a df with the necessary information for this study
   #
   # Args:
@@ -16,6 +16,11 @@ process_tweets <- function(tweets_df) {
   # Returns: 
   #    A df with only unique tweets 
   #
+  # Validate input dataframe
+  if (!inherits(tweets_df, "data.frame")) {
+    stop("Input must be a data frame.")
+  }
+  
   # Check for necessary columns
   req_cols <- c("text", "lang", "entities.urls", "author_id", "created_at",
                 "geo.coordinates.coordinates")
@@ -26,7 +31,9 @@ process_tweets <- function(tweets_df) {
   }
   print("This may take a couple of minutes...")
   
+  # Unnest and select relevant columns from the original dataframe
   tweets <- tweets_df %>%
+    filter(lang == "en") %>% # Keep only English tweets
     unnest_wider(geo.coordinates.coordinates, names_sep = '.') %>%
     unnest_wider(entities.urls) %>%
     select(author_id, text, lang, created_at, 
@@ -34,41 +41,38 @@ process_tweets <- function(tweets_df) {
            latitude = geo.coordinates.coordinates.2, 
            url, expanded_url, display_url, media_key) %>%
     distinct(text, .keep_all=TRUE) %>%
-    mutate(url1 = stringr::str_extract(text, "(https?://t\\.co/[^[:space:]]+)")) %>%
+    mutate(url1 = stringr::str_extract(text, 
+                                       "(https?://t\\.co/[^[:space:]]+)")) %>%
     mutate(text = gsub("(https?://t\\.co/[^[:space:]]+)", "", text)) %>%
-    # filter(lang == "en") %>%
-    mutate(text = gsub("&amp;", "and", text)) %>%
+    mutate(across(c(text, url1), ~gsub("&amp;", "and", .))) %>%
     select(-url1) %>%
     mutate(hashtags = sapply(str_extract_all(text, "#\\w+"), 
                              function(x) str_c(unlist(x), collapse = " "))) %>%
-    mutate(hashtags = ifelse(hashtags == "", NA , hashtags))
+    mutate(hashtags = ifelse(hashtags == "", NA , hashtags)) %>%
+    mutate(hashtags = gsub("#", "", hashtags)) # Remove '#' from the hashtags
+  
+  # Clean the text and add it as a new column called 'clean_text'
+  tweets$clean_text <- sapply(tweets$text, function(text) {
+    # Convert text to lowercase
+    text <- tolower(text)
+    # Remove URLs, mentions, and hashtags
+    text <- gsub("http[^[:blank:]]*|@[^[:blank:]]*|#\\S+", "", text)
+    # Remove emojis and other Unicode symbols, except spaces
+    text <- stri_replace_all_regex(text, "[\\p{So}\\p{Cs}\\p{Cn}]+", "")
+    # Remove punctuation and numbers
+    text <- gsub("[[:punct:]]|[[:digit:]]", "", text)
+    # Remove extra whitespace
+    text <- gsub("\\s+", " ", text)
+    # Remove leading and trailing whitespace
+    text <- str_trim(text)
+    return(text)
+  })
+  
+  # Remove duplicate tweets based on the 'clean_text' column
+  tweets <- tweets %>%
+    distinct(clean_text, .keep_all = TRUE)
   
   return(tweets)
-}
-
-
-clean_text <- function(text) {
-  # Cleans and preprocess the text data.
-  #
-  # Args:
-  #    The df column containing the tweets text
-  #
-  # Returns: 
-  #    A df with a clean text
-  #
-  # Convert text to lowercase
-  text <- tolower(text)
-  # Remove URLs, mentions, and hashtags
-  text <- gsub("http[^[:blank:]]*|@[^[:blank:]]*|#\\S+", "", text)
-  # Remove emojis and other Unicode symbols, except spaces
-  text <- stri_replace_all_regex(text, "[\\p{So}\\p{Cs}\\p{Cn}]+", "")
-  # Remove punctuation and numbers
-  text <- gsub("[[:punct:]]|[[:digit:]]", "", text)
-  # Remove extra whitespace
-  text <- gsub("\\s+", " ", text)
-  # Remove leading and trailing whitespace
-  text <- str_trim(text)
-  return(text)
 }
 
 
@@ -83,8 +87,18 @@ process_urls <- function(df) {
   # Returns: 
   #    A df with filtered URLs
   #
+  # Validate input dataframe
+  if (!inherits(df, "data.frame")) {
+    stop("Input must be a data frame.")
+  }
+  
+  # Check if 'expanded_url' column is present
+  if (!"expanded_url" %in% colnames(df)) {
+    stop("Missing required column: expanded_url.")
+  }
+  
   # Remove rows with empty cells in the 'expanded_url' column
-  df <- df[!sapply(df$expanded_url, is.null),]
+  df <- df[!sapply(df$expanded_url, is.null), ]
   
   # Create a function to filter and separate URLs containing '/photo/' or 'instagram'
   filter_urls <- function(cell) {
@@ -110,14 +124,148 @@ process_urls <- function(df) {
     })
   }
   
-  # Remove the original 'expanded_url' column
-  # df$expanded_url <- NULL
-  
   # Remove rows with no URLs in all the new URL columns
   url_columns <- paste0("url_", 1:max_urls)
   df <- df[rowSums(is.na(df[, url_columns])) != max_urls, ]
   
   return(df)
+}
+
+
+lemmatize_and_filter <- function(df) {
+  # Define a list of words to exclude from lemmatization
+  exclude_list <- c("stunning")
+  
+  # Tokenize the clean_text column
+  tokenized_tweets <- df %>%
+    unnest_tokens(output = "word", input = clean_text)
+  
+  # Lemmatize the words, excluding words in the exclude_list
+  tokenized_tweets$lemma <- future_map(tokenized_tweets$word, function(word) {
+    if (word %in% exclude_list) {
+      return(word)
+    } else {
+      return(lemmatize_strings(word, engine = "textstem"))
+    }
+  }) %>% unlist()
+  
+  # Remove short words (length < 3)
+  tokenized_tweets <- tokenized_tweets %>%
+    filter(nchar(lemma) >= 3)
+  
+  # Remove stop words
+  tokenized_tweets <- tokenized_tweets %>%
+    anti_join(stop_words, by = c("lemma" = "word"))
+  
+  # Group the tokenized tweets back together
+  processed_tweets <- tokenized_tweets %>%
+    group_by(author_id, text, lang, created_at,
+             longitude, latitude, expanded_url, display_url,
+             url_1, url_2, url_3, url_4, url_5, hashtags) %>%
+    summarise(clean_text = paste(word, collapse = " "),
+              lemmatized_text = paste(lemma, collapse = " "), .groups = "drop")
+  
+  return(processed_tweets)
+}
+
+
+groups_df <- function(df, column_names, keyword_sets) {
+  # This function creates a list of dataframes, 
+  # filtered based on the provided keywords.
+  #
+  # Args:
+  #    A df, the columns to be used to filter the df, and the keywords
+  #
+  # Returns: 
+  #    A list of different dfs
+  #
+  
+  # Check if the input is a dataframe
+  if (!is.data.frame(df)) {
+    stop("The input df must be a data frame.")
+  }
+  
+  # Check if the column_names is a character vector
+  if (!is.character(column_names)) {
+    stop("The column_names must be a character vector.")
+  }
+  
+  # Check if the keyword_sets is a list
+  if (!is.list(keyword_sets)) {
+    stop("The keyword_sets must be a list.")
+  }
+  
+  # Define the count_keywords function
+  count_keywords <- function(text, keywords) {
+    keyword_pattern <- paste0("(?i)\\b(", paste(keywords, collapse = "|"), ")\\b")
+    return(sum(grepl(keyword_pattern, text, perl = TRUE)))
+  }
+  
+  # Calculate the keyword counts for each keyword set
+  keyword_counts <- lapply(keyword_sets, function(keywords) {
+    rowSums(sapply(column_names, function(col) {
+      sapply(df[[col]], count_keywords, keywords)
+    }))
+  })
+  
+  # Assign the group based on the maximum keyword count
+  max_counts <- do.call(cbind, keyword_counts)
+  max_indexes <- max.col(max_counts, ties.method = "first")
+  df$group <- names(keyword_sets)[max_indexes]
+  
+  # Assign 'places' group for rows without a group
+  df$group[apply(max_counts, 1, max) == 0] <- "places"
+  
+  # Create a list of dataframes for each group
+  filtered_dfs <- setNames(lapply(c(names(keyword_sets), "places"), function(name) {
+    df[df$group == name, ]
+  }), c(names(keyword_sets), "places"))
+  
+  return(filtered_dfs)
+}
+
+
+plot_common_words <- function(df, column_name, n = 10) {
+  # This function tokenizes the text, counts the frequency of each word, 
+  # and plots the top n common words.
+  #
+  # Args:
+  #    df: A dataframe containing the text column to analyze
+  #    column_name: The name of the text column to analyze
+  #    n: The number of top common words to plot (default is 10)
+  #
+  
+  # Check if the input is a dataframe
+  if (!is.data.frame(df)) {
+    stop("The input df must be a data frame.")
+  }
+  
+  # Check if the column_name is a character vector
+  if (!is.character(column_name) || length(column_name) != 1) {
+    stop("The column_name must be a single character string.")
+  }
+  
+  # Check if the n is numeric and greater than 0
+  if (!is.numeric(n) || n <= 0) {
+    stop("The n value must be a positive number.")
+  }
+  
+  # Tokenize the text
+  tokenized_text <- df %>%
+    select_(column_name) %>%
+    unnest_tokens(word, !!as.name(column_name))
+  
+  # Count the frequency of each word
+  word_counts <- tokenized_text %>%
+    count(word, sort = TRUE) %>%
+    filter(!word %in% stop_words$word) # Remove stop words
+  
+  # Plot the top n common words
+  ggplot(head(word_counts, n), aes(reorder(word, n), n, fill = word)) +
+    geom_col(show.legend = FALSE) +
+    coord_flip() +
+    labs(x = "Words", y = "Frequency", title = "Top Common Words") +
+    theme_minimal()
 }
 
 
@@ -142,3 +290,69 @@ remove_rows <- function(df, words) {
   # Return the modified dataframe
   return(df)
 }
+
+
+filter_dataframe <- function(df) {
+  repeat_process <- TRUE
+  
+  while (repeat_process) {
+    cat("Processing dataframe...\n")
+    
+    # Ask the user for the number of top words to display
+    cat("Enter the number of top words to display: ")
+    num_words <- as.integer(readLines(n = 1))
+    
+    # Process for lemmatized_text column
+    cat("For lemmatized_text column:\n")
+    
+    # Create a table with the top common words
+    top_words_table <- df %>%
+      unnest_tokens(word, lemmatized_text) %>%
+      count(word, sort = TRUE) %>%
+      head(num_words)
+    
+    # Display the table
+    print(top_words_table, n = num_words)
+    
+    # Ask the user for the words to remove
+    cat("Enter the word(s) to remove (separated by commas if more than one): ")
+    words_to_remove <- scan("", what = character(), sep = ",")
+    
+    # Remove the rows containing the words
+    filtered_df <- remove_rows(df, words_to_remove)
+    
+    # Process for hashtags column
+    cat("For hashtags column:\n")
+    
+    # Create a table with the top common hashtags
+    top_hashtags_table <- filtered_df %>%
+      unnest_tokens(hashtag, hashtags) %>%
+      count(hashtag, sort = TRUE) %>%
+      head(num_words)
+    
+    # Display the table
+    print(top_hashtags_table, n = num_words)
+    
+    # Ask the user for the hashtags to remove
+    cat("Enter the hashtag(s) to remove (separated by commas if more than one): ")
+    hashtags_to_remove <- scan("", what = character(), sep = ",")
+    
+    # Remove the rows containing the hashtags
+    df <- remove_rows(filtered_df, hashtags_to_remove)
+    
+    # Ask the user if they want to repeat the process
+    cat("Do you want to repeat the filtering process? (yes/no): ")
+    user_input <- tolower(readLines(n = 1))
+    
+    if (user_input != "yes") {
+      repeat_process <- FALSE
+    }
+  }
+  
+  return(df)
+}
+
+
+
+
+
