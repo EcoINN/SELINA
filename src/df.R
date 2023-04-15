@@ -7,7 +7,7 @@
 #' 
 
 
-process_tweets <- function(tweets_df, similarity_threshold = 0.8) {
+process_tweets <- function(tweets_df) {
   # Creates a df with the necessary information for this study
   #
   # Args:
@@ -49,7 +49,8 @@ process_tweets <- function(tweets_df, similarity_threshold = 0.8) {
     mutate(hashtags = sapply(str_extract_all(text, "#\\w+"), 
                              function(x) str_c(unlist(x), collapse = " "))) %>%
     mutate(hashtags = ifelse(hashtags == "", NA , hashtags)) %>%
-    mutate(hashtags = gsub("#", "", hashtags)) # Remove '#' from the hashtags
+    mutate(hashtags = gsub("#", "", hashtags)) %>% # Remove '#' from the hashtags
+    mutate(hashtags = tolower(hashtags)) # Convert hashtags to lowercase
   
   # Clean the text and add it as a new column called 'clean_text'
   tweets$clean_text <- sapply(tweets$text, function(text) {
@@ -133,6 +134,14 @@ process_urls <- function(df) {
 
 
 lemmatize_and_filter <- function(df) {
+  # Function to tokenize, lemmatize, and filter the text in the clean_text column of a dataframe
+  #
+  # Args:
+  #   df: A dataframe containing a 'clean_text' column with the text to be processed
+  #
+  # Returns:
+  #   A dataframe with the processed text in a new 'lemmatized_text' column
+  #
   # Define a list of words to exclude from lemmatization
   exclude_list <- c("stunning")
   
@@ -145,7 +154,7 @@ lemmatize_and_filter <- function(df) {
     if (word %in% exclude_list) {
       return(word)
     } else {
-      return(lemmatize_strings(word, engine = "textstem"))
+      return(lemmatize_strings(word))
     }
   }) %>% unlist()
   
@@ -167,6 +176,7 @@ lemmatize_and_filter <- function(df) {
   
   return(processed_tweets)
 }
+
 
 
 groups_df <- function(df, column_names, keyword_sets) {
@@ -269,19 +279,103 @@ plot_common_words <- function(df, column_name, n = 10) {
 }
 
 
-remove_rows <- function(df, words) {
+filter_by_word_pairs <- function(df, threshold, column) {
+  # A function to interactively filter rows containing specific word pairs
+  # in a given column.
+  #
+  # Args:
+  #   df: A dataframe containing the data
+  #   threshold: Minimum number of occurrences for a word pair to be considered
+  #   column: The name of the column containing the text to filter
+  #
+  # Returns:
+  #   A filtered dataframe
+  
+  find_word_pairs <- function(df, threshold, column) {
+    # Create a dataframe of word pairs and their frequencies
+    
+    # Tokenize the input column
+    tokenized_df <- df %>%
+      unnest_tokens(output = "word", input = !!sym(column), token = "words")
+    
+    # Find word pairs in the tokenized dataframe
+    word_pairs <- tokenized_df %>%
+      mutate(next_word = lead(word)) %>%
+      count(word, next_word) %>%
+      filter(n >= threshold) %>%
+      arrange(desc(n))
+    
+    return(word_pairs)
+  }
+  
+  remove_rows_by_word_pairs <- function(df, pairs_to_remove, column) {
+    # Create a regex pattern with the word pairs to remove
+    pattern <- paste(pairs_to_remove, collapse = "|")
+    
+    # Create a logical vector indicating which rows contain the word pairs to remove
+    rows_to_remove <- grepl(pattern, df[[column]], ignore.case = TRUE)
+    
+    # Remove the rows from the dataframe
+    df <- df[!rows_to_remove, ]
+    
+    # Return the modified dataframe
+    return(df)
+  }
+  
+  cat("Finding word pairs...\n")
+  
+  repeat_process <- TRUE
+  
+  while (repeat_process) {
+    # Find word pairs
+    word_pairs <- find_word_pairs(df, threshold, column)
+    
+    # Inform the user of the maximum number of word pairs available
+    max_pairs <- nrow(word_pairs)
+    cat("The maximum number of word pairs available to display is:", max_pairs, "\n")
+    
+    # Ask the user for the number of word pairs to display
+    cat("Enter the number of word pairs to display: ")
+    num_pairs <- as.integer(readLines(n = 1))
+    
+    # Print the word pairs
+    print(word_pairs, n = num_pairs)
+    
+    # Ask the user for the word pairs to remove
+    cat("Enter the word pair(s) to remove (separated by commas if more than one): ")
+    pairs_to_remove <- scan("", what = character(), sep = ",")
+    
+    # Remove rows containing the selected word pairs
+    df <- remove_rows_by_word_pairs(df, pairs_to_remove, column)
+    
+    # Ask the user if they want to repeat the process
+    cat("Do you want to repeat the filtering process? (yes/no): ")
+    user_input <- tolower(readLines(n = 1))
+    
+    if (user_input != "yes") {
+      repeat_process <- FALSE
+    }
+  }
+  
+  return(df)
+}
+
+
+remove_rows <- function(df, words, column_name) {
   # Create a function to remove rows containing certain words in a dataframe
   #
   # Args:
   #    df: A df containing the tweets 
   #    words: The words to find within the text
+  #    column_name: The name of the column to search for the words
   #
   # Returns: 
   #    A modified df
   #
+  
   # Create a logical vector indicating which rows contain the words to remove
   rows_to_remove <- grepl(paste(words, collapse = "|"), 
-                          df$text, 
+                          df[[column_name]], 
                           ignore.case = TRUE)
   
   # Remove the rows from the dataframe
@@ -302,12 +396,13 @@ filter_dataframe <- function(df) {
     cat("Enter the number of top words to display: ")
     num_words <- as.integer(readLines(n = 1))
     
-    # Process for lemmatized_text column
-    cat("For lemmatized_text column:\n")
+    # Ask the user for the column to process
+    cat("Enter the column name to process: ")
+    column_name <- readLines(n = 1)
     
     # Create a table with the top common words
     top_words_table <- df %>%
-      unnest_tokens(word, lemmatized_text) %>%
+      unnest_tokens(word, !!sym(column_name)) %>%
       count(word, sort = TRUE) %>%
       head(num_words)
     
@@ -319,26 +414,7 @@ filter_dataframe <- function(df) {
     words_to_remove <- scan("", what = character(), sep = ",")
     
     # Remove the rows containing the words
-    filtered_df <- remove_rows(df, words_to_remove)
-    
-    # Process for hashtags column
-    cat("For hashtags column:\n")
-    
-    # Create a table with the top common hashtags
-    top_hashtags_table <- filtered_df %>%
-      unnest_tokens(hashtag, hashtags) %>%
-      count(hashtag, sort = TRUE) %>%
-      head(num_words)
-    
-    # Display the table
-    print(top_hashtags_table, n = num_words)
-    
-    # Ask the user for the hashtags to remove
-    cat("Enter the hashtag(s) to remove (separated by commas if more than one): ")
-    hashtags_to_remove <- scan("", what = character(), sep = ",")
-    
-    # Remove the rows containing the hashtags
-    df <- remove_rows(filtered_df, hashtags_to_remove)
+    df <- remove_rows(df, words_to_remove, column_name)
     
     # Ask the user if they want to repeat the process
     cat("Do you want to repeat the filtering process? (yes/no): ")
@@ -351,8 +427,3 @@ filter_dataframe <- function(df) {
   
   return(df)
 }
-
-
-
-
-
