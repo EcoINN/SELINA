@@ -75,8 +75,9 @@ df_mt <- lemmatize_and_filter(df)
 df_coord <- remove_na_rows(df_mt, "longitude")
 
 # Filter using the hashtags and the lemmatized_text columns
-dfc <- filter_by_word_pairs(df_coord, 1, "lemmatized_text")
-dfc <- filter_dataframe(dfc)
+dfc <- filter_by_word_triples(dfc, 1, "lemmatized_text")
+dfc <- filter_by_word_pairs(dfc, 1, "lemmatized_text")
+dfc <- filter_dataframe(df_coord)
 
 # Filter df into 4 different dfs based on a set of keywords
 # Define the keyword sets
@@ -98,7 +99,7 @@ keyword_sets <- list(
 column_names <- c("hashtags", "lemmatized_text")
 
 # Filter the dataframes
-filtered_dfs <- groups_df(df_mt, column_names, keyword_sets)
+filtered_dfs <- groups_df(dfc, column_names, keyword_sets)
 
 # Access the individual dataframes
 land_df <- filtered_dfs[["land"]]
@@ -110,24 +111,6 @@ places_df <- filtered_dfs[["places"]]
 land <- filter_by_word_pairs(land_df, 1, "lemmatized_text")
 land <- filter_dataframe(land)
 
-
-
-plot_common_words(df_mt, "lemmatized_text", n = 20)
-plot_common_words(df_mt, "hashtags", n = 20)
-
-
-land_map <- leaflet(land_df) %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(
-    lng = ~longitude,
-    lat = ~latitude,
-    radius = 5,
-    fillColor = "blue",
-    fillOpacity = 0.8,
-    stroke = FALSE
-  )
-
-land_map
 
 
 
