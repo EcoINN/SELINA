@@ -178,6 +178,20 @@ lemmatize_and_filter <- function(df) {
 }
 
 
+remove_na_rows <- function(df, column_name) {
+  # A function to remove rows containing NA values in a specified column
+  #
+  # Args:
+  #   df: A dataframe containing the data
+  #   column_name: The name of the column to check for NA values
+  #
+  # Returns:
+  #   A dataframe without rows containing NA values in the specified column
+  
+  df <- df[!is.na(df[[column_name]]), ]
+  return(df)
+}
+
 
 groups_df <- function(df, column_names, keyword_sets) {
   # This function creates a list of dataframes, 
@@ -235,50 +249,6 @@ groups_df <- function(df, column_names, keyword_sets) {
 }
 
 
-plot_common_words <- function(df, column_name, n = 10) {
-  # This function tokenizes the text, counts the frequency of each word, 
-  # and plots the top n common words.
-  #
-  # Args:
-  #    df: A dataframe containing the text column to analyze
-  #    column_name: The name of the text column to analyze
-  #    n: The number of top common words to plot (default is 10)
-  #
-  
-  # Check if the input is a dataframe
-  if (!is.data.frame(df)) {
-    stop("The input df must be a data frame.")
-  }
-  
-  # Check if the column_name is a character vector
-  if (!is.character(column_name) || length(column_name) != 1) {
-    stop("The column_name must be a single character string.")
-  }
-  
-  # Check if the n is numeric and greater than 0
-  if (!is.numeric(n) || n <= 0) {
-    stop("The n value must be a positive number.")
-  }
-  
-  # Tokenize the text
-  tokenized_text <- df %>%
-    select_(column_name) %>%
-    unnest_tokens(word, !!as.name(column_name))
-  
-  # Count the frequency of each word
-  word_counts <- tokenized_text %>%
-    count(word, sort = TRUE) %>%
-    filter(!word %in% stop_words$word) # Remove stop words
-  
-  # Plot the top n common words
-  ggplot(head(word_counts, n), aes(reorder(word, n), n, fill = word)) +
-    geom_col(show.legend = FALSE) +
-    coord_flip() +
-    labs(x = "Words", y = "Frequency", title = "Top Common Words") +
-    theme_minimal()
-}
-
-
 filter_by_word_pairs <- function(df, threshold, column) {
   # A function to interactively filter rows containing specific word pairs
   # in a given column.
@@ -310,7 +280,7 @@ filter_by_word_pairs <- function(df, threshold, column) {
   
   remove_rows_by_word_pairs <- function(df, pairs_to_remove, column) {
     # Create a regex pattern with the word pairs to remove
-    pattern <- paste(pairs_to_remove, collapse = "|")
+    pattern <- paste0("\\b(", paste(pairs_to_remove, collapse = "|"), ")\\b")
     
     # Create a logical vector indicating which rows contain the word pairs to remove
     rows_to_remove <- grepl(pattern, df[[column]], ignore.case = TRUE)
@@ -330,6 +300,12 @@ filter_by_word_pairs <- function(df, threshold, column) {
     # Find word pairs
     word_pairs <- find_word_pairs(df, threshold, column)
     
+    # Check if the dataframe is empty
+    if (nrow(df) == 0) {
+      cat("All rows have been removed. The resulting dataframe is empty.\n")
+      return(df)
+    }
+    
     # Inform the user of the maximum number of word pairs available
     max_pairs <- nrow(word_pairs)
     cat("The maximum number of word pairs available to display is:", max_pairs, "\n")
@@ -338,12 +314,27 @@ filter_by_word_pairs <- function(df, threshold, column) {
     cat("Enter the number of word pairs to display: ")
     num_pairs <- as.integer(readLines(n = 1))
     
-    # Print the word pairs
-    print(word_pairs, n = num_pairs)
+    # Ask the user if they want to display word pairs from the beginning or the end of the list
+    cat("Do you want to display word pairs from the beginning or the end of the list? (beginning/end): ")
+    display_from <- tolower(readLines(n = 1))
     
-    # Ask the user for the word pairs to remove
-    cat("Enter the word pair(s) to remove (separated by commas if more than one): ")
-    pairs_to_remove <- scan("", what = character(), sep = ",")
+    if (display_from == "end") {
+      start_idx <- max(1, nrow(word_pairs) - num_pairs + 1)
+      end_idx <- nrow(word_pairs)
+    } else {
+      start_idx <- 1
+      end_idx <- min(num_pairs, nrow(word_pairs))
+    }
+    
+    # Print the word pairs
+    displayed_word_pairs <- word_pairs[start_idx:end_idx, ]
+    print(displayed_word_pairs, n = num_pairs)
+    
+    # Ask the user for the word pairs to remove (by index)
+    cat("Enter the index (indices) of the word pair(s) to remove (separated by commas if more than one): ")
+    pair_indices <- scan("", what = integer(), sep = ",")
+    pairs_to_remove <- displayed_word_pairs[pair_indices, c("word", "next_word")]
+    pairs_to_remove <- paste(pairs_to_remove$word, pairs_to_remove$next_word)
     
     # Remove rows containing the selected word pairs
     df <- remove_rows_by_word_pairs(df, pairs_to_remove, column)
@@ -361,44 +352,77 @@ filter_by_word_pairs <- function(df, threshold, column) {
 }
 
 
-remove_rows <- function(df, words, column_name) {
-  # Create a function to remove rows containing certain words in a dataframe
+filter_dataframe <- function(df) {
+  # A function to interactively filter rows based on user-selected words
+  # from a specified column of a dataframe.
   #
   # Args:
-  #    df: A df containing the tweets 
-  #    words: The words to find within the text
-  #    column_name: The name of the column to search for the words
+  #   df: A dataframe containing the data
   #
-  # Returns: 
-  #    A modified df
-  #
+  # Returns:
+  #   A filtered dataframe
   
-  # Create a logical vector indicating which rows contain the words to remove
-  rows_to_remove <- grepl(paste(words, collapse = "|"), 
-                          df[[column_name]], 
-                          ignore.case = TRUE)
-  
-  # Remove the rows from the dataframe
-  df <- df[!rows_to_remove, ]
-  
-  # Return the modified dataframe
-  return(df)
-}
-
-
-filter_dataframe <- function(df) {
   repeat_process <- TRUE
+  
+  remove_rows <- function(df, words, column_name) {
+    # A function to remove rows containing certain words in a dataframe
+    #
+    # Args:
+    #   df: A dataframe containing the data
+    #   words: The words to find within the text
+    #   column_name: The name of the column to search for the words
+    #
+    # Returns: 
+    #   A modified dataframe
+    
+    # Check if the words parameter is empty
+    if (length(words) == 0) {
+      # If words is empty, return the original dataframe without modifications
+      return(df)
+    }
+    
+    # Create a logical vector indicating which rows contain the words to remove
+    rows_to_remove <- grepl(paste(words, collapse = "|"), 
+                            df[[column_name]], 
+                            ignore.case = TRUE)
+    
+    # Remove the rows from the dataframe
+    df <- df[!rows_to_remove, ]
+    
+    # Return the modified dataframe
+    return(df)
+  }
   
   while (repeat_process) {
     cat("Processing dataframe...\n")
+    
+    # Ask the user for the column to process
+    cat("Enter the column name to process: ")
+    column_name <- readLines(n = 1)
+    
+    # Check if the column_name exists in the dataframe
+    if (!(column_name %in% colnames(df))) {
+      cat("Column not found in the dataframe. Please check the column name and try again.\n")
+      next
+    }
+    
+    # Calculate the total number of unique words in the specified column
+    unique_words_count <- df %>%
+      unnest_tokens(word, !!sym(column_name)) %>%
+      count(word, sort = TRUE) %>%
+      nrow()
+    
+    cat("The maximum number of unique words in the selected column is:", unique_words_count, "\n")
     
     # Ask the user for the number of top words to display
     cat("Enter the number of top words to display: ")
     num_words <- as.integer(readLines(n = 1))
     
-    # Ask the user for the column to process
-    cat("Enter the column name to process: ")
-    column_name <- readLines(n = 1)
+    # Check if num_words is a valid input
+    if (is.na(num_words) || num_words < 1 || num_words > unique_words_count) {
+      cat("Invalid input. Please enter a positive integer within the range of unique words.\n")
+      next
+    }
     
     # Create a table with the top common words
     top_words_table <- df %>%
@@ -409,9 +433,10 @@ filter_dataframe <- function(df) {
     # Display the table
     print(top_words_table, n = num_words)
     
-    # Ask the user for the words to remove
-    cat("Enter the word(s) to remove (separated by commas if more than one): ")
-    words_to_remove <- scan("", what = character(), sep = ",")
+    # Ask the user for the indices of the words to remove
+    cat("Enter the index (indices) of the word(s) to remove (separated by commas if more than one): ")
+    word_indices <- scan("", what = integer(), sep = ",")
+    words_to_remove <- top_words_table$word[word_indices]
     
     # Remove the rows containing the words
     df <- remove_rows(df, words_to_remove, column_name)
@@ -427,3 +452,5 @@ filter_dataframe <- function(df) {
   
   return(df)
 }
+    
+
