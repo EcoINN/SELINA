@@ -424,11 +424,25 @@ filter_dataframe <- function(df) {
       next
     }
     
+    # Ask the user if they want to display words from the beginning or the end of the list
+    cat("Do you want to display words from the beginning or the end of the list? (beginning/end): ")
+    display_from <- tolower(readLines(n = 1))
+    
+    if (display_from == "end") {
+      start_idx <- max(1, unique_words_count - num_words + 1)
+      end_idx <- unique_words_count
+    } else {
+      start_idx <- 1
+      end_idx <- min(num_words, unique_words_count)
+    }
+    
     # Create a table with the top common words
-    top_words_table <- df %>%
+    all_words_table <- df %>%
       unnest_tokens(word, !!sym(column_name)) %>%
-      count(word, sort = TRUE) %>%
-      head(num_words)
+      count(word, sort = TRUE)
+    
+    # Get the words based on the user's choice
+    top_words_table <- all_words_table[start_idx:end_idx, ]
     
     # Display the table
     print(top_words_table, n = num_words)
@@ -452,5 +466,131 @@ filter_dataframe <- function(df) {
   
   return(df)
 }
-    
 
+
+filter_by_word_triples <- function(df, threshold, column) {
+  # A function to interactively filter rows containing specific word triples
+  # in a given column.
+  #
+  # Args:
+  #   df: A dataframe containing the data
+  #   threshold: Minimum number of occurrences for a word triple to be considered
+  #   column: The name of the column containing the text to filter
+  #
+  # Returns:
+  #   A filtered dataframe
+  
+  find_word_triples <- function(df, threshold, column) {
+    # Create a dataframe of word triples and their frequencies
+    
+    # Add a unique identifier column to the dataframe
+    df <- df %>%
+      mutate(id = row_number())
+    
+    # Tokenize the input column
+    tokenized_df <- df %>%
+      unnest_tokens(output = "word", input = !!sym(column), token = "words")
+    
+    # Find word triples in the tokenized dataframe
+    word_triples <- tokenized_df %>%
+      group_by(id) %>%
+      mutate(prev_word = lag(word),
+             next_word = lead(word)) %>%
+      filter(!is.na(prev_word) & !is.na(next_word)) %>%
+      count(prev_word, word, next_word) %>%
+      filter(n >= threshold) %>%
+      arrange(desc(n))
+    
+    return(word_triples)
+  }
+  
+  remove_rows_by_word_triples <- function(df, triples_to_remove, column) {
+    # Create a regex pattern with the word triples to remove
+    pattern <- paste0("\\b(", paste(triples_to_remove, collapse = "|"), ")\\b")
+    
+    # Create a logical vector indicating which rows contain the word triples to remove
+    rows_to_remove <- grepl(pattern, df[[column]], ignore.case = TRUE)
+    
+    # Remove the rows from the dataframe
+    df <- df[!rows_to_remove, ]
+    
+    # Return the modified dataframe
+    return(df)
+  }
+  
+  cat("Finding word triples...\n")
+  
+  repeat_process <- TRUE
+  
+  while (repeat_process) {
+    # Find word triples
+    word_triples <- find_word_triples(df, threshold, column)
+    
+    # Check if the dataframe is empty
+    if (nrow(df) == 0) {
+      cat("All rows have been removed. The resulting dataframe is empty.\n")
+      return(df)
+    }
+    
+    # Inform the user of the maximum number of word triples available
+    max_triples <- nrow(word_triples)
+    cat("The maximum number of word triples available to display is:", max_triples, "\n")
+    
+    # Ask the user for the number of word triples to display
+    cat("Enter the number of word triples to display: ")
+    num_triples <- as.integer(readLines(n = 1))
+    
+    # Ask the user if they want to display word triples from the beginning or the end of the list
+    cat("Do you want to display word triples from the beginning or the end of the list? (beginning/end): ")
+    display_from <- tolower(readLines(n = 1))
+    
+    if (display_from == "end") {
+      start_idx <- max(1, nrow(word_triples) - num_triples + 1)
+      end_idx <- nrow(word_triples)
+    } else {
+      start_idx <- 1
+      end_idx <- min(num_triples, nrow(word_triples))
+    }
+    
+    # Print the word triples with indices
+    displayed_triples <- word_triples[start_idx:end_idx, ]
+    displayed_triples <- displayed_triples %>%
+      mutate(index = row_number()) %>%
+      select(index, everything())
+    
+    print(displayed_triples, n = num_triples)
+    
+    # Ask the user for the indices of the word triples to remove
+    cat("Enter the index/indices of the word triple(s) to remove (separated by commas if more than one): ")
+    indices_to_remove <- scan("", what = integer(), sep = ",")
+    
+    # Validate indices
+    if (any(is.na(indices_to_remove) | indices_to_remove < 1 | indices_to_remove > nrow(displayed_triples))) {
+      cat("Invalid index/indices. Please enter valid indices within the displayed range.\n")
+      next
+    }
+    
+    # Get the word triples to remove based on the provided indices
+    triples_to_remove <- displayed_triples %>%
+      filter(index %in% indices_to_remove) %>%
+      select(prev_word, word, next_word) %>%
+      apply(1, paste, collapse = " ")
+    
+    # Remove rows containing the selected word triples
+    df <- remove_rows_by_word_triples(df, triples_to_remove, column)
+    
+    # Ask the user if they want to repeat the process
+    cat("Do you want to repeat the filtering process? (yes/no): ")
+    user_input <- tolower(readLines(n = 1))
+    
+    if (user_input != "yes") {
+      repeat_process <- FALSE
+    }
+  }
+  
+  return(df)
+}
+  
+    
+    
+                  
