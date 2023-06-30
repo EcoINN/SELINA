@@ -20,6 +20,8 @@
 #' @examples 
 #' data <- data.frame(text = c("Hello world", "This is a test", "Another test"))
 #' filter_dataframe(data)
+
+
 filter_dataframe <- function(df) {
   repeat_process <- TRUE
   
@@ -117,6 +119,7 @@ filter_dataframe <- function(df) {
 }
 
 
+
 #' Filter Data Frame by Word Pairs
 #' 
 #' Function to interactively filter rows containing specific word pairs in a given column.
@@ -131,6 +134,8 @@ filter_dataframe <- function(df) {
 #' @examples
 #' data <- data.frame(text = c("Hello world", "This is a test", "Another test"))
 #' filter_by_word_pairs(data, threshold = 2, column = "text")
+
+
 filter_by_word_pairs <- function(df, threshold, column) {
   # Find word pairs and their frequencies
   find_word_pairs <- function(df, threshold, column) {
@@ -268,6 +273,7 @@ filter_by_word_pairs <- function(df, threshold, column) {
 }
 
 
+
 #' Filter Data Frame by Word Triples
 #' 
 #' This function interactively filters rows containing specific word triples in a given column.
@@ -282,6 +288,8 @@ filter_by_word_pairs <- function(df, threshold, column) {
 #' @examples 
 #' # For examples, suppose df is your data frame, threshold is 3, and column is "text".
 #' filter_by_word_triples(df, 3, "text")
+
+
 filter_by_word_triples <- function(df, threshold, column) {
   
   find_word_triples <- function(df, threshold, column) {
@@ -419,6 +427,7 @@ filter_by_word_triples <- function(df, threshold, column) {
 }
 
 
+
 #' Filter Data Frame by List
 #' 
 #' This function filters a dataframe based on a list of places. The function checks for matches in the 'hashtags', 
@@ -432,6 +441,8 @@ filter_by_word_triples <- function(df, threshold, column) {
 #' @examples 
 #' # For examples, suppose df is your data frame, and list_data is your list of places with latitude and longitude.
 #' filter_df_by_list(df, list_data)
+
+
 filter_df_by_list <- function(df, list_data) {
   # Convert all place names and df text to lowercase for case-insensitive matching
   # Also replace hyphens in place names with spaces
