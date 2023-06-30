@@ -13,7 +13,7 @@
 #' @return A dataframe of cleaned and pre-processed tweets.
 #' @examples
 #' \dontrun{
-#'   # Example using your process_tweets function here.
+#'   cleaned_tweets <- process_tweets(df)
 #' }
 #'
 process_tweets <- function(tweets_df) {
@@ -84,9 +84,9 @@ process_tweets <- function(tweets_df) {
 #' @return A dataframe where URLs are separated into different columns and non-photo URLs are filtered out.
 #' @examples
 #' \dontrun{
-#'   # Example using your process_urls function here.
+#'   filtered_urls_df <- process_urls(df)
 #' }
-#' 
+#'
 process_urls <- function(df) {
   # Takes a data frame as input, separates multiple URLs in the expanded_url 
   # column into different columns, and filters out the URLs that don't have 
@@ -149,7 +149,7 @@ process_urls <- function(df) {
 #' @return A dataframe with tokenized, lemmatized, and filtered text in a new 'lemmatized_text' column.
 #' @examples
 #' \dontrun{
-#'   # Example using your lemmatise function here.
+#'   lemma_df <- lemmatise(df)
 #' }
 #' 
 lemmatise <- function(df) {
@@ -196,7 +196,7 @@ lemmatise <- function(df) {
 #' @return A dataframe without rows containing NA values in the specified column.
 #' @examples
 #' \dontrun{
-#'   # Example using your remove_na_rows function here.
+#'   no_na_df <- remove_na_rows(df, "your_column")
 #' }
 #' 
 remove_na_rows <- function(df, column_name) {
@@ -213,7 +213,11 @@ remove_na_rows <- function(df, column_name) {
 #' @return A list of dataframes, each dataframe is filtered based on a keyword.
 #' @examples
 #' \dontrun{
-#'   # Example using your groups_df function here.
+#'   keyword_sets <- list(
+#'     group1 = c("keyword1", "keyword2"),
+#'     group2 = c("keyword3", "keyword4")
+#'   )
+#'   grouped_dfs <- groups_df(df, c("your_column"), keyword_sets)
 #' }
 #' 
 groups_df <- function(df, column_names, keyword_sets) {
@@ -269,7 +273,7 @@ groups_df <- function(df, column_names, keyword_sets) {
 #' @return The dataframe with the cleaned text column.
 #' @examples
 #' \dontrun{
-#'   # Example using your clean_text_function here.
+#'   clean_text_df <- clean_text_function(df, 'your_column')
 #' }
 #' 
 clean_text_function <- function(df, text_column = 'text') {
@@ -295,9 +299,9 @@ clean_text_function <- function(df, text_column = 'text') {
 #' @return A modified dataframe with renamed and rearranged columns.
 #' @examples
 #' \dontrun{
-#'   # Example using your modify_dataframe function here.
+#'   modified_df <- modify_dataframe(df)
 #' }
-#' 
+#'
 modify_dataframe <- function(df) {
   # Replace 'longitude' and 'latitude' with 'longitude.x' and 'latitude.x'
   df <- df %>%
