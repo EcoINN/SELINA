@@ -1,9 +1,8 @@
-#' ---
-#' Title: "Twitter spatial analysis"
-#' Author: EcoINN
-#' Date: "September 2022"
-#' Output: Database
-#' ---
+#' Tweets preprocessing and analysis
+#' 
+#' @author EcoINN
+#' @date "September 2022"
+#' @return data frame and analysis
 
 
 # Parallel computing
@@ -38,7 +37,13 @@ library(leaflet)
 library("openxlsx")
 
 
-# Prepare script ------------------------------
+
+#' Prepare script
+#'
+#' This section sets up parallel processing and defines the data and output directories.
+#' It also defines the necessary data for connecting to the Twitter API.
+ 
+
 # Set up parallel processing
 plan(multisession)
 
@@ -57,7 +62,13 @@ start_date <- "2015-01-01T00:00:00Z"
 end_date <- "2022-12-31T00:00:00Z"
 
 
-# Connect to the twitter API ------------------
+
+#' Connect to the twitter API
+#'
+#' This section connects to the Twitter API and mines tweets using the defined keywords.
+#' The mined tweets are then saved to the specified data directory.
+ 
+
 # Mining tweets
 tweets <- get_tweets(keys, keywords, country, start_date, end_date, datdir)
 View(tweets)
@@ -66,7 +77,13 @@ View(tweets)
 tweets <- rjson("./data", "^data.*$")
 
 
-# Data processing ------------------------------
+
+#' Data processing
+#'
+#' This section processes the tweets. This includes preparing the data,
+#' filtering URLs, tokenizing and lemmatizing the text, and removing short tweets.
+
+
 # df preparation
 df <- process_tweets(tweets)
 
@@ -74,10 +91,17 @@ df <- process_tweets(tweets)
 df <- process_urls(df)
 
 # Tokenisation, lemmatisation and remove short tweets (<3)
-lemma <- lemmatize_and_filter(df)
+lemma <- lemmatise(df)
 
 
-# Filtering data that have coordinates ------------------------------
+
+#' Filtering data that have coordinates
+#'
+#' This section filters the data to remove rows without coordinates. It then further filters
+#' the data using hashtags and the lemmatized text. The data is then divided into four dataframes
+#' based on a set of defined keywords.
+
+
 # Remove rows with NA values in the longitude column
 df_coord <- remove_na_rows(lemma, "longitude")
 
@@ -128,7 +152,13 @@ combined_df <- bind_rows(land, sea, other, places)
 tweets_df <- filter_dataframe(combined_df)
 
 
-# Filtering data that dont have coordinates ------------------------------
+
+#' Filtering data that dont have coordinates
+#'
+#' This section filters the data to only include rows without coordinates. It then cleans
+#' the text and filters the data using a list of sites.
+ 
+
 # Keep only rows containing NA values in the longitude column
 df_nocoord <- lemma[is.na(lemma[['longitude']]), ]
 
@@ -145,19 +175,12 @@ df_sites_mt <- modify_dataframe(df_sites)
 write.xlsx(df_sites_mt, "Sites.xlsx")
 
 
-# Fix tweet_df------------------------------------------------------------
-# Filter by df with a list of coordinates of all sites in malta
-df_clean2 <- clean_text_function(tweets_df, 'text')
-df_tweets <- filter_df_by_list(df_clean2, sites)
 
-# Remove the rows in df2 that have the same 'text' as the rows in df1
-df_subset <- anti_join(tweets_df, df_tweets, by = "text")
-
-# Add the unique rows from df2 to df1
-df_combined <- bind_rows(df_subset, df_tweets)
+#' Merge data frames
+#'
+#' This section merges the two dataframes into one.
 
 
-# Merge data frames-------------------------------------------------------
 # Merge the two dataframes
 merged_df <- bind_rows(tweets_df, df_sites_mt)
 
@@ -165,9 +188,16 @@ merged_df <- bind_rows(tweets_df, df_sites_mt)
 write.xlsx(merged_df, "Mt_tweets.xlsx")
 
 
-# Plot data --------------------------------------------------------------
-maps(df_tweets, "latitude.x", "longitude.x")
-maps(df_tweets, "latitude.y", "longitude.y")
+
+#' Plot data
+#'
+#' This section reads the merged data from the .xlsx file and plots it.
+
+
+# Read the .xlsx file
+malta <- read_excel("./output/Mt_tweets.xlsx")
+
+maps(malta, "latitude", "longitude")
 
 
 # Analysis ---------------------------------------------------------------
