@@ -202,47 +202,13 @@ maps(malta, "latitude", "longitude")
 
 # Analysis ---------------------------------------------------------------
 
-analyse_seasons <- function(data) {
-  # Convert created_at column to date-time format
-  data$created_at <- ymd_hms(data$created_at)
-  
-  # Create season column
-  data$season <- ifelse(month(data$created_at) %in% c(4:9), "Dry Season", "Wet Season")
-  
-  # Count rows per year and season
-  rows_per_season <- table(year(data$created_at), data$season)
-  
-  # Return the data frame with season column
-  return(data)
-}
+words <- common_words(malta)
+plot_words(malta, "lemmatized_text", 10)
+plot_bigrams(malta, "lemmatized_text", 10)
+plot_trigrams(malta, "lemmatized_text", 10)
+sentiment_analysis(malta, "lemmatized_text", 10)
 
-result <- analyse_seasons(merged_df)
+library(spatstat)
+library(sp)
+spatial_analysis(malta, "longitude", "latitude", 99)
 
-
-# Filter data for the dry season
-dry_season_data <- result[result$season == "Dry Season", ]
-
-# Create a Leaflet map
-map <- leaflet() %>%
-  addTiles() %>%
-  setView(lng = 0, lat = 0, zoom = 2)
-
-# Add markers for places in the dry season
-map <- map %>%
-  addMarkers(data = dry_season_data, lng = ~longitude, lat = ~latitude, 
-             popup = ~paste("Tweet:", text))
-
-# Display the map
-map
-
-
-# Calculate row counts per year in the dry season
-row_counts <- table(year(dry_season_data$created_at))
-
-# Find the year with the maximum and minimum row counts
-year_max <- names(row_counts)[which.max(row_counts)]
-year_min <- names(row_counts)[which.min(row_counts)]
-
-# Print the results
-cat("Year with the most rows in the dry season:", year_max, "\n")
-cat("Year with the fewest rows in the dry season:", year_min, "\n")

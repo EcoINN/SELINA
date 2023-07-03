@@ -7,6 +7,7 @@
 #' @return data.frame
 
 
+
 #' Clean and Pre-process Tweets
 #' 
 #' @param tweets_df A dataframe containing tweets.
@@ -16,6 +17,8 @@
 #'   cleaned_tweets <- process_tweets(df)
 #' }
 #'
+
+
 process_tweets <- function(tweets_df) {
   # Validate input dataframe
   if (!inherits(tweets_df, "data.frame")) {
@@ -78,6 +81,7 @@ process_tweets <- function(tweets_df) {
 }
 
 
+
 #' Separate and Filter URLs
 #' 
 #' @param df A dataframe.
@@ -87,17 +91,9 @@ process_tweets <- function(tweets_df) {
 #'   filtered_urls_df <- process_urls(df)
 #' }
 #'
+
+
 process_urls <- function(df) {
-  # Takes a data frame as input, separates multiple URLs in the expanded_url 
-  # column into different columns, and filters out the URLs that don't have 
-  # the word 'photo' in them.
-  #
-  # Args:
-  #    A df
-  #
-  # Returns: 
-  #    A df with filtered URLs
-  #
   # Validate input dataframe
   if (!inherits(df, "data.frame")) {
     stop("Input must be a data frame.")
@@ -143,6 +139,7 @@ process_urls <- function(df) {
 }
 
 
+
 #' Tokenize, Lemmatize, and Filter Text
 #' 
 #' @param df A dataframe.
@@ -152,6 +149,8 @@ process_urls <- function(df) {
 #'   lemma_df <- lemmatise(df)
 #' }
 #' 
+
+
 lemmatise <- function(df) {
   # Define a list of words to exclude from lemmatization
   exclude_list <- c("stunning")
@@ -189,6 +188,7 @@ lemmatise <- function(df) {
 }
 
 
+
 #' Remove Rows with NA Values
 #' 
 #' @param df A dataframe.
@@ -199,10 +199,13 @@ lemmatise <- function(df) {
 #'   no_na_df <- remove_na_rows(df, "your_column")
 #' }
 #' 
+
+
 remove_na_rows <- function(df, column_name) {
   df <- df[!is.na(df[[column_name]]), ]
   return(df)
 }
+
 
 
 #' Create Grouped Dataframes
@@ -220,6 +223,8 @@ remove_na_rows <- function(df, column_name) {
 #'   grouped_dfs <- groups_df(df, c("your_column"), keyword_sets)
 #' }
 #' 
+
+
 groups_df <- function(df, column_names, keyword_sets) {
   # Check if the input is a dataframe
   if (!is.data.frame(df)) {
@@ -266,6 +271,7 @@ groups_df <- function(df, column_names, keyword_sets) {
 }
 
 
+
 #' Clean Text Column in a Dataframe
 #' 
 #' @param df A dataframe.
@@ -276,6 +282,8 @@ groups_df <- function(df, column_names, keyword_sets) {
 #'   clean_text_df <- clean_text_function(df, 'your_column')
 #' }
 #' 
+
+
 clean_text_function <- function(df, text_column = 'text') {
   df <- df %>%
     mutate(
@@ -293,6 +301,7 @@ clean_text_function <- function(df, text_column = 'text') {
 }
 
 
+
 #' Modify Dataframe
 #' 
 #' @param df A dataframe.
@@ -302,6 +311,8 @@ clean_text_function <- function(df, text_column = 'text') {
 #'   modified_df <- modify_dataframe(df)
 #' }
 #'
+
+
 modify_dataframe <- function(df) {
   # Replace 'longitude' and 'latitude' with 'longitude.x' and 'latitude.x'
   df <- df %>%

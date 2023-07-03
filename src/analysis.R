@@ -1,62 +1,105 @@
-#' ---
-#' Title: "Twitter analysis Functions"
-#' Author: EcoINN
-#' Date: "November 2022"
-#' Output: twitter analysis
-#' ---
+#' Twitter analysis 
 #' 
+#' Set of functions to carry out the analysis
+#' 
+#' @author EcoINN
+#' @date "November 2022"
+#' @return Analysis 
 
 
-common_words <- function(df) {
-  # This function explores common words found on tweets
-  #
-  # Args:
-  #    df_ft: A cleaned data frame
-  #
-  # Returns: 
-  #    A df with only one column containing all the words
-  #
-  # Clean and preprocess the data
-  tweet_clean <- df %>%
-    mutate(tweet_text = gsub("\\s?(f|ht)(tp)(s?)(://)([^\\.]*)[\\.|/](\\S*)", 
-                             "", text)) %>%  
-    dplyr::select(text) %>%
-    unnest_tokens(word, text) %>% 
-    anti_join(stop_words) %>%
-    filter(!word == "rt")
+
+#' Sentiment Analysis
+#'
+#' @param data A dataframe containing text data.
+#' @param column A character string specifying the column of the data to analyze.
+#' @param n_words An integer specifying the number of words to display in the plot.
+#' @return A ggplot2 object displaying the sentiment analysis results.
+#' @examples
+#' \dontrun{
+#'   sentiment_plot = sentiment_analysis(data = tweets_df, column = "lemmatized_text", n_words = 15)
+#'   print(sentiment_plot)
+#' }
+
+
+sentiment_analysis <- function(data, column, n_words = 10, title = column) {
+  # Unnest tokens
+  words <- data %>% 
+    unnest_tokens(output = word, input = !!sym(column))
   
-  return(tweet_clean)
+  # Get sentiment
+  sentiment <- words %>% 
+    inner_join(get_sentiments("bing")) %>% 
+    count(word, sentiment, sort = TRUE) %>% 
+    ungroup()
+  
+  # Filter to get only the top n_words for each sentiment
+  top_words <- sentiment %>%
+    group_by(sentiment) %>%
+    top_n(n_words, n) %>%
+    ungroup()
+  
+  # Plot
+  ggplot(top_words, aes(x = reorder(word, n), y = n, fill = sentiment)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~sentiment, scales = "free_y") +
+    labs(y = "Contribution to sentiment",
+         x = paste("Top words from '", title, "' column")) +
+    coord_flip()
 }
 
 
-tweet_bigrams <- function(df) {
-  # This function explores common words found on tweets
-  #
-  # Args:
-  #    df_ft: A cleaned data frame
-  #
-  # Returns: 
-  #    A df with the words
-  #
-  # Remove stop words from the text column and remove RT, http
-  tweets_paired <- df %>%
-    dplyr::select(text) %>%
-    mutate(text = stringr::str_remove_all(text, stop_words$word)) %>%
-    mutate(text = stringr::str_replace_all(text, "\\brt\\b|\\bRT\\b", "")) %>%
-    mutate(text = stringr::str_replace_all(text, "http://*", "")) %>%
-    unnest_tokens(paired_words, text, token = "ngrams", n = 2)
+
+#' Spatial Analysis
+#'
+#' @param df A dataframe containing location data.
+#' @param lon A character string specifying the column of the data representing longitude.
+#' @param lat A character string specifying the column of the data representing latitude.
+#' @param nsim An integer specifying the number of simulations for computing the K-function.
+#' @return Two plots. The first plot displays the point pattern. The second plot displays the K-function with CSR Envelope.
+#' @examples
+#' \dontrun{
+#'   spatial_analysis(df = tweets_df, lon = "longitude", lat = "latitude", nsim = 99)
+#' }
+
+
+spatial_analysis <- function(df, lon = "longitude", lat = "latitude", nsim = 99){
+  # Check if the provided longitude and latitude columns exist in the dataframe
+  if (!(lon %in% names(df)) | !(lat %in% names(df))) {
+    stop("The provided longitude or latitude column name does not exist in the dataframe.")
+  }
   
-  # Count the frequency of paired words
-  tweets_paired %>%
-    count(paired_words, sort = TRUE)
+  # Convert longitude and latitude to numeric
+  df[[lon]] <- as.numeric(as.character(df[[lon]]))
+  df[[lat]] <- as.numeric(as.character(df[[lat]]))
   
-  # Separate words into two columns and count the unique combinations of words
-  tweets_separated <- tweets_paired %>%
-    separate(paired_words, c("word1", "word2"), sep = " ")
+  # Check for NA values in the longitude or latitude columns
+  if (any(is.na(df[[lon]])) | any(is.na(df[[lat]]))) {
+    stop("The provided longitude or latitude column contains NA values.")
+  }
   
-  # Count the frequency of word combinations
-  word_counts <- tweets_separated %>%
-    count(word1, word2, sort = TRUE)
+  # Check if longitude and latitude values are finite and fall within expected ranges
+  if(any(!is.finite(df[[lon]])) | any(!is.finite(df[[lat]])) | 
+     any(df[[lon]] < -180 | df[[lon]] > 180) | any(df[[lat]] < -90 | df[[lat]] > 90)) {
+    stop("Longitude and latitude values must be finite and fall within valid ranges (-180 to 180 for longitude, -90 to 90 for latitude).")
+  }
   
-  return(word_counts)
+  # Create a bounding box (a window object in spatstat)
+  bb <- owin(xrange = range(df[[lon]]), yrange = range(df[[lat]]))
+  
+  # Convert our spatial points to a ppp object which is required by the spatstat package
+  ppp_object <- tryCatch({
+    ppp(df[[lon]], df[[lat]], window = bb)
+  }, error = function(e) {
+    stop("Error converting to ppp object: ", e$message)
+  })
+  
+  # Plot the point pattern
+  plot(ppp_object, main = "Point Pattern")
+  
+  # Compute the K-function
+  K <- envelope(ppp_object, fun = Kest, nsim = nsim)
+  
+  # Plot the result
+  plot(K, main = "K-function with CSR Envelope")
 }
+

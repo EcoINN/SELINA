@@ -1,22 +1,27 @@
-#' ---
-#' Title: "Map function (leaflet)"
-#' Author: EcoINN
-#' Date: "December 2022"
-#' Output: Map function
-#' ---
+#' Plots
+#' 
+#' Set of functions to generate maps and plots
+#' 
+#' @author EcoINN
+#' @date "December 2022"
+#' @return map/plots
+
+
+#' Maps Tweet Locations Using Leaflet
+#'
+#' @param df A dataframe with long/lat data.
+#' @param lat_col The name of the column with latitude data.
+#' @param lon_col The name of the column with longitude data.
+#' @return A leaflet map of all tweets in the df.
+#' @examples
+#' \dontrun{
+#'   # Assuming df is your DataFrame and "latitude" and "longitude" are your column names
+#'   leaflet_map = maps(df, "latitude", "longitude")
+#'   print(leaflet_map)
+#' }
 
 
 maps <- function(df, lat_col, lon_col) {
-  # This function uses leaflet to map tweets
-  #
-  # Args:
-  #    df: A data frame with long/lat data
-  #    lat_col: The name of the column with latitude data
-  #    lon_col: The name of the column with longitude data
-  #
-  # Returns: 
-  #    A map of all tweets in the df
-  
   # Ensure the latitude and longitude columns are correctly recognized
   if (!(lat_col %in% names(df)) | !(lon_col %in% names(df))) {
     stop("Latitude and/or longitude columns not found in the data frame.")
@@ -47,96 +52,110 @@ maps <- function(df, lat_col, lon_col) {
 
 
 
-plot_words <- function(tweet_clean, x = x, y=y, title=title, no) {
-  # This function plots the most common words
-  #
-  # Args:
-  #    tweet_clean: A df with a column containing all the words
-  #    x: Title for the x axis
-  #    y: Title for the y axis
-  #    title: The title for the plot
-  #    no: Number of words to show in the plot
-  #
-  # Returns: 
-  #    A plot of the common words
-  #
-  tweet_clean %>%
-    count(word, sort = TRUE) %>%
-    top_n(no) %>%
-    mutate(word = reorder(word, n)) %>%
-    ggplot(aes(x = word, y = n)) +
-    geom_col() +
-    xlab(NULL) +
-    coord_flip() +
-    labs(x = x,
-         y = y,
-         title = title)
-}
+#' Plots Most Common Words
+#'
+#' @param data A dataframe.
+#' @param column A character string specifying the column to analyze.
+#' @param num_words An integer specifying the number of most common words to plot. Default is 20.
+#' @return A ggplot2 plot.
+#' @examples
+#' \dontrun{
+#'   # Assuming df is your DataFrame and "text" is your text column
+#'   common_words_plot = plot_words(df, "text", 10)
+#'   print(common_words_plot)
+#' }
 
 
-plot_paired_words <- function(word_counts, title=title, subtitle=subtitle, no) {
-  # This function plots the result of the paired word analysis
-  #
-  # Args:
-  #    word_counts: A df with a column containing all the words
-  #    title: The title for the plot
-  #    no: Number of paired words to show in the plot
-  #
-  # Returns: 
-  #    A plot of the paired words
-  #
-  word_counts %>%
-    filter(n >= no) %>%
-    graph_from_data_frame() %>%
-    ggraph(layout = "fr") +
-    geom_node_point(color = "darkslategray4", size = 3) +
-    geom_node_text(aes(label = name), vjust = 1.8, size = 3) +
-    labs(title = title,
-         subtitle = subtitle,
-         x = "", y = "") +
-    theme_void()
-}
-
-
-plot_common_words <- function(df, column_name, n = 10) {
-  # This function tokenizes the text, counts the frequency of each word, 
-  # and plots the top n common words.
-  #
-  # Args:
-  #    df: A dataframe containing the text column to analyze
-  #    column_name: The name of the text column to analyze
-  #    n: The number of top common words to plot (default is 10)
-  #
-  
-  # Check if the input is a dataframe
-  if (!is.data.frame(df)) {
-    stop("The input df must be a data frame.")
-  }
-  
-  # Check if the column_name is a character vector
-  if (!is.character(column_name) || length(column_name) != 1) {
-    stop("The column_name must be a single character string.")
-  }
-  
-  # Check if the n is numeric and greater than 0
-  if (!is.numeric(n) || n <= 0) {
-    stop("The n value must be a positive number.")
-  }
-  
-  # Tokenize the text
-  tokenized_text <- df %>%
-    select_(column_name) %>%
-    unnest_tokens(word, !!as.name(column_name))
+plot_words <- function(data, column, num_words = 20) {
+  # Unnest the tokens in the specified column
+  data_unnested <- data %>% 
+    unnest_tokens(word, !!sym(column))
   
   # Count the frequency of each word
-  word_counts <- tokenized_text %>%
-    count(word, sort = TRUE) %>%
-    filter(!word %in% stop_words$word) # Remove stop words
+  word_frequency <- data_unnested %>%
+    count(word, sort = TRUE)
   
-  # Plot the top n common words
-  ggplot(head(word_counts, n), aes(reorder(word, n), n, fill = word)) +
-    geom_col(show.legend = FALSE) +
+  # Plot the most common words
+  ggplot(word_frequency[1:num_words, ], aes(x = reorder(word, n), y = n)) +
+    geom_col(fill = 'steelblue') +
     coord_flip() +
-    labs(x = "Words", y = "Frequency", title = "Top Common Words") +
-    theme_minimal()
+    labs(x = "Words",
+         y = "Frequency",
+         title = paste("Most common words in '", column, "' column"))
+}
+
+
+
+#' Plots Most Common Bigrams
+#'
+#' @param data A dataframe.
+#' @param column A character string specifying the column to analyze.
+#' @param num_bigrams An integer specifying the number of most common bigrams to plot. Default is 20.
+#' @return A ggplot2 plot.
+#' @examples
+#' \dontrun{
+#'   # Assuming df is your DataFrame and "text" is your text column
+#'   bigrams_plot = plot_bigrams(df, "text", 10)
+#'   print(bigrams_plot)
+#' }
+
+
+plot_bigrams <- function(data, column, num_bigrams = 20) {
+  # Unnest the tokens in the specified column
+  data_unnested <- data %>% 
+    unnest_tokens(output = bigram, input = !!sym(column), token = "ngrams", n = 2)
+  
+  # Count the frequency of each bigram
+  bigram_frequency <- data_unnested %>%
+    count(bigram, sort = TRUE)
+  
+  # Filter out the NAs
+  bigram_frequency <- bigram_frequency %>% 
+    filter(!is.na(bigram))
+  
+  # Plot the most common bigrams
+  ggplot(bigram_frequency[1:num_bigrams, ], aes(x = reorder(bigram, n), y = n)) +
+    geom_col(fill = 'steelblue') +
+    coord_flip() +
+    labs(x = "Bigrams",
+         y = "Frequency",
+         title = paste("Most common bigrams in '", column, "' column"))
+}
+
+
+
+#' Plots Most Common Trigrams
+#'
+#' @param data A dataframe.
+#' @param column A character string specifying the column to analyze.
+#' @param num_trigrams An integer specifying the number of most common trigrams to plot. Default is 20.
+#' @return A ggplot2 plot.
+#' @examples
+#' \dontrun{
+#'   # Assuming df is your DataFrame and "text" is your text column
+#'   trigrams_plot = plot_trigrams(df, "text", 10)
+#'   print(trigrams_plot)
+#' }
+
+
+plot_trigrams <- function(data, column, num_trigrams = 20) {
+  # Unnest the tokens in the specified column
+  data_unnested <- data %>% 
+    unnest_tokens(output = trigram, input = !!sym(column), token = "ngrams", n = 3)
+  
+  # Count the frequency of each trigram
+  trigram_frequency <- data_unnested %>%
+    count(trigram, sort = TRUE)
+  
+  # Filter out the NAs
+  trigram_frequency <- trigram_frequency %>% 
+    filter(!is.na(trigram))
+  
+  # Plot the most common trigrams
+  ggplot(trigram_frequency[1:num_trigrams, ], aes(x = reorder(trigram, n), y = n)) +
+    geom_col(fill = 'steelblue') +
+    coord_flip() +
+    labs(x = "Trigrams",
+         y = "Frequency",
+         title = paste("Most common trigrams in '", column, "' column"))
 }
