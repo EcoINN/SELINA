@@ -10,9 +10,11 @@
 #' @return A spatial object with aggregated social media data for each grid cell in Malta
 
 
+
 # Load necessary libraries
 library(sf)         # for handling spatial data
 library(dplyr)      # for data manipulation
+
 
 
 #' Reading and Preparing Data
@@ -41,6 +43,8 @@ crs_target <- st_crs(grid)
 twitter_data <- st_transform(twitter, crs_target)
 flickr_data <- st_transform(flickr, crs_target)
 inaturalist_data <- st_transform(inaturalist, crs_target)
+
+
 
 #' Performing Spatial Joins and Aggregating Data
 #'
@@ -87,6 +91,8 @@ combined_aggregated[is.na(combined_aggregated)] <- 0
 combined_aggregated <- combined_aggregated %>%
   mutate(total_count = twitter_count + flickr_count + inaturalist_count)
 
+
+
 #' Finalizing the Spatial Object
 #'
 #' This final section merges the combined aggregated data with the original grid layer to create
@@ -106,3 +112,81 @@ final_grid <- st_as_sf(final_grid)
 
 # Now you can write the final grid to a new Shapefile
 st_write(final_grid, "C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/final_grid.shp")
+
+
+
+#' Reading and Preparing Raster and Grid Data
+#'
+#' This section focuses on loading raster data for NDVI, DEM, and Slope, along with a grid layer. 
+#' The data is then prepared by aligning all layers to a common extent and coordinate reference system.
+#'
+#' Steps:
+#' 1. Load raster and vector data: Read raster files for NDVI, DEM, and Slope, and the grid layer shapefile.
+#' 2. Find and align to common extent: Identify the overlapping extent of all raster layers and adjust them accordingly.
+#' 3. Transform CRS: Transform the grid layer to match the CRS of the raster layers.
+#'
+#' @param ndvi_raster_path File path to the NDVI raster data.
+#' @param dem_raster_path File path to the DEM raster data.
+#' @param slope_raster_path File path to the Slope raster data.
+#' @param grid_shp_path File path to the grid layer shapefile.
+
+# Reading the raster and grid data
+wet_ndvi_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/NDVI/wet/2023_wet_ndvi.tif")
+dry_ndvi_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/NDVI/dry/2023_dry_ndvi.tif")
+dem_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/dem_msk.tif")
+slope_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/slope.tif")
+grid_layer <- st_read("C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/final_grid.shp")
+
+# Finding the common extent
+common_extent <- reduce(list(extent(wet_ndvi_raster), 
+                             extent(dry_ndvi_raster), 
+                             extent(dem_raster), extent(slope_raster)), 
+                        intersect)
+
+# Clipping rasters to the common extent
+wet_ndvi_raster <- crop(wet_ndvi_raster, common_extent)
+dry_ndvi_raster <- crop(dry_ndvi_raster, common_extent)
+dem_raster <- crop(dem_raster, common_extent)
+slope_raster <- crop(slope_raster, common_extent)
+
+# Assuming all rasters have the same CRS
+grid_layer <- st_transform(grid_layer, crs(wet_ndvi_raster))
+
+
+
+#' Extracting Environmental Variables
+#'
+#' This section extracts the average NDVI, DEM, and Slope values for each grid cell. 
+#' The extracted values are then added to the grid layer, creating a comprehensive dataset for analysis.
+#'
+#' Steps:
+#' 1. Extract NDVI: Calculate the average NDVI for each grid cell.
+#' 2. Extract DEM: Calculate the average elevation (DEM) for each grid cell.
+#' 3. Extract Slope: Calculate the average slope for each grid cell.
+#' 4. Combine with grid data: Add the extracted values as new columns in the grid layer.
+#'
+#' @return A data frame within the grid layer containing the environmental variables for each cell.
+
+# Extracting data
+avg_wet_ndvi <- extract(wet_ndvi_raster, grid_layer, fun = mean, df = TRUE)
+avg_dry_ndvi <- extract(dry_ndvi_raster, grid_layer, fun = mean, df = TRUE)
+avg_dem <- extract(dem_raster, grid_layer, fun = mean, df = TRUE)
+avg_slope <- extract(slope_raster, grid_layer, fun = mean, df = TRUE)
+
+# Adding extracted data to the grid layer
+grid_layer$avg_wet_ndvi <- avg_wet_ndvi[, 1]
+grid_layer$avg_dry_ndvi <- avg_dry_ndvi[, 1]
+grid_layer$avg_dem <- avg_dem[, 1]
+grid_layer$avg_slope <- avg_slope[, 1]
+
+
+
+#' Finalizing and Saving the Spatial Object
+#'
+#' The final step involves saving the updated grid layer with the environmental variables
+#' as a new shapefile for further use in spatial analysis or visualization.
+#'
+#' @return The final spatial object saved as a shapefile.
+
+# Saving the updated grid layer
+st_write(grid_layer, "C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/updated_grid_layer.shp")
