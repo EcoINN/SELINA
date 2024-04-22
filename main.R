@@ -27,14 +27,25 @@ library(stringi)
 library(stringdist)
 library(textstem)
 library(SnowballC)
+library(rlang)
+library(lubridate)
+
+# Analysis
+library(sf)
+library(sp)
+library(spatstat)
+library(forecast)
+library(spdep)
+library(rgdal)
 
 # Visualization
 library(ggraph)
 library(igraph)
 library(leaflet)
+library(ggmap)
 
 # xlsx
-library("openxlsx")
+library(openxlsx)
 
 
 
@@ -200,15 +211,106 @@ malta <- read_excel("./output/Mt_tweets.xlsx")
 maps(malta, "latitude", "longitude")
 
 
-# Analysis ---------------------------------------------------------------
 
-words <- common_words(malta)
+#' Hot spot analysis
+#'
+#' This section conducts a hotspot analysis using the Getis-Ord Gi* statistic.
+
+hotspot_analysis(malta, k = 8, dmin = 0, dmax = 1000) # Here, dmin and dmax are set to 0 and 1 km, respectively.
+
+# Create a color palette for the hotspot types
+colors <- colorFactor(palette = c("blue", "red", "grey"),
+                      domain = levels(hotspot_df$hotspot_type))
+
+# Create an interactive map
+leaflet(data = hotspot_df) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    color = ~colors(hotspot_type),
+    popup = ~paste("Getis-Ord Gi*:", round(getis_ord, 2),
+                   "<br>Hotspot type:", hotspot_type)
+  )
+
+# Summary of Getis-Ord Gi* statistics
+summary(hotspot_df$getis_ord)
+
+# Table of hotspot types
+table(hotspot_df$hotspot_type)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Plots
 plot_words(malta, "lemmatized_text", 10)
 plot_bigrams(malta, "lemmatized_text", 10)
 plot_trigrams(malta, "lemmatized_text", 10)
+
+# Sentiment analysis
 sentiment_analysis(malta, "lemmatized_text", 10)
 
-library(spatstat)
-library(sp)
+# Spatial analysis
 spatial_analysis(malta, "longitude", "latitude", 99)
 
+# Time-series analysis
+# Aggregate tweets by season
+seasonal_tweets <- aggregate_tweets(malta)
+
+# Conduct time series analysis
+results <- time_series_analysis(seasonal_tweets)
+
+
+
+# Frequency analysis
+season_counts <- temporal_analysis(malta, "created_at")
+geographical_analysis(malta)
+
+
+
+
+# First, you will need to create a new dataframe filtered for the top 10 places by number of visits
+top_places <- malta %>%
+  count(places) %>%
+  arrange(desc(n)) %>%
+  head(10) %>%
+  pull(places)
+
+# Then filter the original dataframe for these top 10 places
+filtered_malta <- malta %>%
+  filter(places %in% top_places)
+
+# Create a new dataframe with counts of visits per year for each place
+visit_counts <- filtered_malta %>%
+  mutate(year = year(created_at)) %>%
+  count(year, places) 
+
+# Calculate total visits per place and order places by total visits
+total_visits <- visit_counts %>%
+  group_by(places) %>%
+  summarise(total = sum(n)) %>%
+  arrange(-total)
+
+# Make places factor in visit_counts in the order of total_visits
+visit_counts$places <- factor(visit_counts$places, levels = total_visits$places)
+
+# Now plot the changes per year for these top 10 places
+ggplot(visit_counts, aes(x = year, y = n, color = places)) +
+  geom_line() +
+  labs(title = "Visits Over Time for Top 10 Places", x = "Year", y = "Number of Visits") +
+  theme_classic(base_size = 12) +
+  scale_color_discrete(name = "Place")
