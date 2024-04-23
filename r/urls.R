@@ -15,7 +15,7 @@
 # Load necessary libraries
 library(RSelenium)
 library(readxl)
-library(XML)
+library(xml2)
 
 # Server
 rD <- rsDriver(browser = "firefox")
@@ -29,16 +29,18 @@ tweet_urls <- tweets_data$url_1
 image_urls <- vector("list", length(tweet_urls))
 
 # Function to wait for an element to be present
-waitForElement <- function(driver, css_selector, timeout = 5) {
+waitForElements <- function(driver, css_selector, timeout = 5) {
   start_time <- Sys.time()
+  elements <- list()
   while (TRUE) {
-    element <- driver$findElements(using = 'css selector', value = css_selector)
-    if (length(element) > 0) return(element[[1]])
+    elements <- driver$findElements(using = 'css selector', value = css_selector)
+    if (length(elements) > 0) break
     if (difftime(Sys.time(), start_time, units = "secs") > timeout) {
-      stop("Timeout reached waiting for element.")
+      stop("Timeout reached waiting for elements.")
     }
     Sys.sleep(0.5)  # Check every half second
   }
+  return(elements)
 }
 
 # Iterate over tweet URLs to extract images
@@ -46,33 +48,40 @@ for (i in seq_along(tweet_urls)) {
   remDr$navigate(tweet_urls[i])
   
   tryCatch({
-    imgElement <- waitForElement(remDr, "article img", timeout = 10)
-    imgElement$clickElement()
+    # Use waitForElements to get all image elements
+    imgElements <- waitForElements(remDr, "img[src*='twimg']", timeout = 20)
     
-    overlay_image <- waitForElement(remDr, "div[aria-label='Image'] img", timeout = 5)  # Update based on actual selector
-    src <- overlay_image$getElementAttribute("src")[[1]]
-    image_urls[[i]] <- src
+    # Extract the 'src' from each image element
+    srcs <- sapply(imgElements, function(element) {
+      element$getElementAttribute("src")[[1]]
+    })
+    
+    # Store all image URLs
+    image_urls[[i]] <- srcs
     
   }, error = function(e) {
     message(sprintf("Error at URL %s: %s", tweet_urls[i], e$message))
     image_urls[[i]] <- NA
   })
   
-  # Attempt to close the overlay, if it's there
-  tryCatch({
-    close_button <- remDr$findElement(using = 'css selector', 'svg[aria-label="Close"]')
-    close_button$click()
-  }, error = function(e) {
-    # If the close button isn't found, it's okay; just log the message
-    message("Close button not found; overlay may have closed automatically or does not exist.")
-  })
-  
   Sys.sleep(2)  # Throttle requests
 }
+
+# Flatten the image_urls list
+image_urls_flat <- sapply(image_urls, function(urls) {
+  if (is.null(urls) || length(urls) == 0) {
+    return(NA)
+  } else {
+    paste(urls, collapse = " ")
+  }
+})
+
+# Create the data frame
+output_df <- data.frame(tweet_url = tweet_urls, image_url = image_urls_flat, stringsAsFactors = FALSE)
+
+# Write to CSV
+write.csv(output_df, "extracted_image_urls.csv", row.names = FALSE)
 
 # Stop RSelenium server and close browser
 remDr$close()
 rD$server$stop()
-
-# Optionally, save the results to a CSV file or return them directly
-write.csv(data.frame(tweet_url = tweet_urls, image_url = unlist(image_urls)), "extracted_image_urls.csv", row.names = FALSE)
