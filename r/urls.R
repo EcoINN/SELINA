@@ -22,7 +22,7 @@ rD <- rsDriver(browser = "firefox")
 remDr <- rD$client
 
 # Read Excel file containing URLs
-tweets_data <- read_excel("C:/Ecostack/02_Projects/01_Selina/selina/test.xlsx")
+tweets_data <- read_excel("C:/Ecostack/02_Projects/01_Selina/selina/Mt_tweets.xlsx")
 tweet_urls <- tweets_data$url_1
 
 # Store image URLs
@@ -49,7 +49,7 @@ for (i in seq_along(tweet_urls)) {
   
   tryCatch({
     # Use waitForElements to get all image elements
-    imgElements <- waitForElements(remDr, "img[src*='twimg']", timeout = 20)
+    imgElements <- waitForElements(remDr, 'img[alt="Image"]', timeout = 20)
     
     # Extract the 'src' from each image element
     srcs <- sapply(imgElements, function(element) {
