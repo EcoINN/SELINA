@@ -22,38 +22,52 @@ rD <- rsDriver(browser = "firefox")
 remDr <- rD$client
 
 # Read Excel file containing URLs
-tweets_data <- read_excel("C:/Ecostack/02_Projects/01_Selina/selina/Mt_tweets.xlsx")
+tweets_data <- read_excel("C:/Ecostack/02_Projects/01_Selina/selina/test.xlsx")
 tweet_urls <- tweets_data$url_1
 
 # Store image URLs
 image_urls <- vector("list", length(tweet_urls))
 
+# Function to wait for an element to be present
+waitForElement <- function(driver, css_selector, timeout = 5) {
+  start_time <- Sys.time()
+  while (TRUE) {
+    element <- driver$findElements(using = 'css selector', value = css_selector)
+    if (length(element) > 0) return(element[[1]])
+    if (difftime(Sys.time(), start_time, units = "secs") > timeout) {
+      stop("Timeout reached waiting for element.")
+    }
+    Sys.sleep(0.5)  # Check every half second
+  }
+}
+
 # Iterate over tweet URLs to extract images
 for (i in seq_along(tweet_urls)) {
-  # Navigate to the tweet page
   remDr$navigate(tweet_urls[i])
   
-  # Wait for the tweet to load and images to be present
-  webElem <- remDr$findElements(using = 'css selector', "article img")
-  if (length(webElem) > 0) {
-    # Click on the first image
-    webElem[[1]]$clickElement()
-    Sys.sleep(5) # Allow time for the image overlay to open
+  tryCatch({
+    imgElement <- waitForElement(remDr, "article img", timeout = 10)
+    imgElement$clickElement()
     
-    # Find the image element within the overlay and get the src attribute
-    tryCatch({
-      image <- remDr$findElement(using = 'css selector', 'img[alt="Image"]') # Adjust the selector as needed
-      src <- image$getElementAttribute("src")[[1]]
-      image_urls[[i]] <- src
-    }, error = function(e) {
-      message(paste("Error extracting image for URL", tweet_urls[i], ":", e$message))
-      image_urls[[i]] <- NA
-    })
-  } else {
+    overlay_image <- waitForElement(remDr, "div[aria-label='Image'] img", timeout = 5)  # Update based on actual selector
+    src <- overlay_image$getElementAttribute("src")[[1]]
+    image_urls[[i]] <- src
+    
+  }, error = function(e) {
+    message(sprintf("Error at URL %s: %s", tweet_urls[i], e$message))
     image_urls[[i]] <- NA
-  }
+  })
   
-  Sys.sleep(1) # Throttle the requests slightly to avoid being blocked
+  # Attempt to close the overlay, if it's there
+  tryCatch({
+    close_button <- remDr$findElement(using = 'css selector', 'svg[aria-label="Close"]')
+    close_button$click()
+  }, error = function(e) {
+    # If the close button isn't found, it's okay; just log the message
+    message("Close button not found; overlay may have closed automatically or does not exist.")
+  })
+  
+  Sys.sleep(2)  # Throttle requests
 }
 
 # Stop RSelenium server and close browser
