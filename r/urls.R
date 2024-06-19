@@ -11,30 +11,59 @@
 #' @return A CSV file named 'tweet_image_urls.csv' containing the original tweet URLs and their corresponding
 #' image URLs, if any. This file will be saved in the working directory.
 
-
 # Load necessary libraries
 library(RSelenium)
 library(readxl)
 library(xml2)
+library(wdman)
 
-# Server
-rD <- rsDriver(browser = "firefox")
-remDr <- rD$client
+# Function to connect to the running Selenium server
+connect_rsDriver <- function() {
+  # Specify the path to the GeckoDriver executable
+  geckodriver <- "C:/Users/ecost/AppData/Local/binman/binman_geckodriver/win64/0.34.0/geckodriver.exe"
+  
+  # Initialize remote driver with specified GeckoDriver path and browserName "firefox"
+  remDr <- remoteDriver(
+    remoteServerAddr = "localhost",
+    port = 4567L,
+    browserName = "firefox",
+    extraCapabilities = list(marionette = TRUE, geckodriver = geckodriver)
+  )
+  
+  # Open the remote driver
+  remDr$open()
+  
+  return(remDr)
+}
 
-# Read Excel file containing URLs
-tweets_data <- read_excel("C:/Ecostack/02_Projects/01_Selina/selina/Mt_tweets.xlsx")
-tweet_urls <- tweets_data$url_1
+# Function to check if a URL is accessible without logging in
+is_accessible_without_login <- function(url) {
+  page_content <- read_html(url)
+  return(!grepl("Log in|Sign in|Log in to Twitter", page_content))
+}
 
-# Store image URLs
-image_urls <- vector("list", length(tweet_urls))
+# Function to navigate to a URL
+safe_navigate <- function(driver, url) {
+  tryCatch({
+    if (is.character(url) && !is.na(url) && nzchar(url) && length(url) == 1) {
+      driver$navigate(url)
+      return(TRUE)
+    } else {
+      stop("Invalid URL format")
+    }
+  }, error = function(e) {
+    message(sprintf("Error navigating to URL %s: %s", url, e$message))
+    return(FALSE)
+  })
+}
 
-# Function to wait for an element to be present
-waitForElements <- function(driver, css_selector, timeout = 5) {
+# Function to wait for elements to be present
+waitForElements <- function(driver, css_selector, timeout = 20) {
   start_time <- Sys.time()
   elements <- list()
   while (TRUE) {
-    elements <- driver$findElements(using = 'css selector', value = css_selector)
-    if (length(elements) > 0) break
+    elements <- try(driver$findElements(using = 'css selector', value = css_selector), silent = TRUE)
+    if (!inherits(elements, "try-error") && length(elements) > 0) break
     if (difftime(Sys.time(), start_time, units = "secs") > timeout) {
       stop("Timeout reached waiting for elements.")
     }
@@ -43,26 +72,68 @@ waitForElements <- function(driver, css_selector, timeout = 5) {
   return(elements)
 }
 
+# Function to fetch image URLs for a tweet URL with retry mechanism
+fetch_image_urls <- function(driver, tweet_url, max_retry = 2) {
+  if (grepl("instagram\\.com", tweet_url, ignore.case = TRUE)) {
+    message(sprintf("Skipping Instagram URL: %s", tweet_url))
+    return(NA)
+  }
+  
+  # Check if URL is accessible without logging in
+  if (!is_accessible_without_login(tweet_url)) {
+    message(sprintf("URL requires logging in: %s. Skipping.", tweet_url))
+    return(NA)
+  }
+  
+  # Log the current URL for debugging
+  print(sprintf("Processing URL: %s", tweet_url))
+  
+  for (retry in 1:max_retry) {
+    if (safe_navigate(driver, tweet_url)) {
+      tryCatch({
+        # Adjust CSS selector if necessary based on website structure
+        imgElements <- waitForElements(driver, 'img[alt="Image"]', timeout = 40)
+        
+        # Extract the 'src' from each image element
+        srcs <- sapply(imgElements, function(element) {
+          element$getElementAttribute("src")[[1]]
+        })
+        
+        # Return all image URLs if found
+        if (length(srcs) > 0) {
+          return(srcs)
+        } else {
+          message(sprintf("No images found. Retrying URL: %s (Attempt %d)", tweet_url, retry))
+          Sys.sleep(2)  # Wait before retrying
+        }
+      }, error = function(e) {
+        message(sprintf("Error at URL %s: %s. Retrying (Attempt %d)", tweet_url, e$message, retry))
+        Sys.sleep(2)  # Wait before retrying
+      })
+    } else {
+      message(sprintf("Failed to navigate URL: %s. Retrying (Attempt %d)", tweet_url, retry))
+      Sys.sleep(2)  # Wait before retrying
+    }
+  }
+  
+  # Return NA if max retries reached
+  return(NA)
+}
+
+# Connect to the running Selenium server
+remDr <- connect_rsDriver()
+
+# Read Excel file containing URLs
+tweets_data <- read_excel("C:/Ecostack/Projects/01_Selina/selina/Mt_tweets.xlsx")
+tweet_urls <- tweets_data$url_1
+
+# Store image URLs
+image_urls <- vector("list", length(tweet_urls))
+
 # Iterate over tweet URLs to extract images
 for (i in seq_along(tweet_urls)) {
-  remDr$navigate(tweet_urls[i])
-  
-  tryCatch({
-    # Use waitForElements to get all image elements
-    imgElements <- waitForElements(remDr, 'img[alt="Image"]', timeout = 20)
-    
-    # Extract the 'src' from each image element
-    srcs <- sapply(imgElements, function(element) {
-      element$getElementAttribute("src")[[1]]
-    })
-    
-    # Store all image URLs
-    image_urls[[i]] <- srcs
-    
-  }, error = function(e) {
-    message(sprintf("Error at URL %s: %s", tweet_urls[i], e$message))
-    image_urls[[i]] <- NA
-  })
+  current_url <- tweet_urls[[i]]  # Extract URL
+  image_urls[[i]] <- fetch_image_urls(remDr, current_url)
   
   Sys.sleep(2)  # Throttle requests
 }
@@ -72,7 +143,7 @@ image_urls_flat <- sapply(image_urls, function(urls) {
   if (is.null(urls) || length(urls) == 0) {
     return(NA)
   } else {
-    paste(urls, collapse = " ")
+    paste(urls, collapse = " ")  # Consider using separator other than space if needed
   }
 })
 
@@ -82,6 +153,10 @@ output_df <- data.frame(tweet_url = tweet_urls, image_url = image_urls_flat, str
 # Write to CSV
 write.csv(output_df, "extracted_image_urls.csv", row.names = FALSE)
 
-# Stop RSelenium server and close browser
-remDr$close()
-rD$server$stop()
+# Close browser session
+tryCatch({
+  remDr$close()
+  remDr$server$stop()
+}, error = function(e) {
+  message("Error closing RSelenium session: ", e$message)
+})
