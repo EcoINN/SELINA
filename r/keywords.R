@@ -1,6 +1,18 @@
-library(readxl)
-library(writexl)
-library(dplyr)
+#' Counting Keywords in Twitter Labels
+#'
+#' This script processes an Excel file containing updated Twitter posts and their associated labels, and counts
+#' occurrences of specified keywords from a separate sheet within the same file. The results are stored in new columns
+#' within the dataset. This enables further analysis of tweet content based on the presence of defined keywords.
+#'
+#' @author "Ecostack Innovations"
+#' @date "July 2024"
+#' @return An Excel file named 'MT_tweets_final.xlsx' containing the original tweet data along with additional columns
+#' for keyword counts corresponding to each group. This file will be saved in the specified output directory.
+
+# Load necessary libraries
+library(readxl)      # For reading Excel files
+library(writexl)     # For writing Excel files
+library(dplyr)       # For data manipulation
 
 # Load the Tweets data
 tweets_file <- "C:/Ecostack/Projects/01_Selina/selina/output/Tweets/Mt_tweets_updated.xlsx"
