@@ -5,13 +5,8 @@ library(openxlsx)
 library(rlang)
 
 # Step 1: Read the data from the three files
-# Read the Excel file containing tweet URLs
 excel1 <- read_excel("C:/Ecostack/Projects/01_Selina/selina/output/Tweets/Mt_tweets.xlsx")
-
-# Read the CSV file containing extracted image URLs
 excel2 <- read.csv("C:/Ecostack/Projects/01_Selina/selina/output/URLS/URLs/extracted_image_urls.csv")
-
-# Read the Excel file containing image tags
 excel3 <- read_excel("C:/Ecostack/Projects/01_Selina/selina/output/URLS/Tags.xlsx")
 
 # Step 2: Merge data from excel1 and excel2 based on the matching URLs
