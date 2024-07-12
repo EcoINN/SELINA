@@ -16,7 +16,7 @@ keyword_list <- keywords_data %>%
 # Initialize new columns in tweets_data
 for (group in names(keyword_list)) {
   if (!(group %in% names(tweets_data))) {
-    tweets_data[[group]] <- 0
+    tweets_data[[group]] <- NA  # Initialize with NA
   }
 }
 
@@ -37,6 +37,11 @@ for (i in 1:nrow(tweets_data)) {
     
     for (group in names(keyword_list)) {
       tweets_data[i, group] <- count_keywords(labels_combined, unlist(strsplit(keyword_list[[group]], ", ")))
+    }
+  } else {
+    # Set NA for all keyword groups if no labels are present
+    for (group in names(keyword_list)) {
+      tweets_data[i, group] <- NA
     }
   }
 }
