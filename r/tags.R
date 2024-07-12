@@ -1,8 +1,20 @@
+#' Merging and Labeling Image URLs from Twitter Posts
+#'
+#' This script combines data from multiple sources to enrich Twitter post information with image URLs and associated labels.
+#' It reads a list of tweets, extracted image URLs, and corresponding tags from Excel and CSV files. The script merges
+#' the data based on tweet URLs and generates labeled image columns for further analysis or reporting.
+#' The functionality relies on consistent data structures across the files being processed.
+#'
+#' @author "Ecostack Innovations"
+#' @date "July 2024"
+#' @return An Excel file named 'Mt_tweets_updated.xlsx' containing the original tweet data along with additional
+#' columns for extracted image URLs and their corresponding labels. This file will be saved in the specified output directory.
+
 # Load necessary libraries
-library(readxl)
-library(dplyr)
-library(openxlsx)
-library(rlang)
+library(readxl)       # For reading Excel files
+library(dplyr)        # For data manipulation and joining
+library(openxlsx)     # For writing Excel files
+library(rlang)        # For advanced programming with R
 
 # Step 1: Read the data from the three files
 excel1 <- read_excel("C:/Ecostack/Projects/01_Selina/selina/output/Tweets/Mt_tweets.xlsx")
@@ -38,8 +50,8 @@ merge_labels <- function(data, tags, url_col, label_col) {
 # Step 4: Loop through each image_url column and merge labels
 # Loop through image_url1 to image_url8
 for (i in 1:8) {
-  url_col <- paste0("image_url", i)
-  label_col <- paste0("label_", i)
+  url_col <- paste0("image_url", i)    # Construct the image URL column name
+  label_col <- paste0("label_", i)      # Construct the label column name
   # Merge labels for the current image URL column
   merged_data <- merge_labels(merged_data, excel3, url_col, label_col)
 }
