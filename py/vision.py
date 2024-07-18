@@ -5,8 +5,8 @@ import time
 import yaml
 import requests
 
-# Load configuration from config.yaml
-with open("C:/Ecostack/Projects/01_Selina/selina/py/config.yaml", "r") as config_file:
+# Load yaml file
+with open("C:/Ecostack/Projects/01_Selina/selina/output/URLS/Python/config.yaml", "r") as config_file:
     config = yaml.safe_load(config_file)
 
 # Set up logging
@@ -29,7 +29,7 @@ os.makedirs(config['output_dir'], exist_ok=True)
 
 # Function to analyze an image URL using the Vision API
 def analyze_image_url(image_url):
-    """Analyze the image at the given URL using Google Vision API and return the labels."""
+    """Analyze the image at the given URL using Google Vision API and return labels with scores."""
     try:
         vision_api_url = f"https://vision.googleapis.com/v1/images:annotate?key={api_key}"
         request_body = {
@@ -57,7 +57,7 @@ def analyze_image_url(image_url):
             return []
 
         labels = response_json['responses'][0].get('labelAnnotations', [])
-        labels_data = [label['description'] for label in labels]  # Use only the label descriptions
+        labels_data = [(label['description'], label['score']) for label in labels]
         return labels_data
     except Exception as e:
         logging.error(f"Exception analyzing image URL {image_url}: {e}")
@@ -100,13 +100,41 @@ for batch_num in range(num_batches):
     pd.DataFrame(batch_results).to_csv(intermediate_output_file, index=False)
     logging.info(f"Batch {batch_num} results saved to {intermediate_output_file}")
 
-# Convert all_results to DataFrame and format the labels column as a string
-results_df = pd.DataFrame(all_results)
-results_df['labels'] = results_df['labels'].apply(lambda x: ', '.join(x) if x else '')
+# Reshape
+def reshape_results(all_results):
+  """Reshape results to desired format with separate columns for each label and score."""
+  final_results = []
+  max_labels = 0  # Track maximum number of labels encountered
+  for result in all_results:
+    image_url = result['image_url']
+    labels = [label for label, _ in result['labels']]  # Extract just labels
+    scores = [str(score) for _, score in result['labels']]  # Extract and convert scores to strings
+    max_labels = max(max_labels, len(labels))  # Update maximum labels
 
-# Save all results to a final CSV file
-final_output_file = os.path.join(config['output_dir'], "image_analysis_results.csv")
+  # Create column names dynamically based on max_labels
+  label_cols = [f'label_{i+1}' for i in range(max_labels)]
+  score_cols = [f'score_{i+1}' for i in range(max_labels)]
+  all_cols = ['image_url'] + label_cols + score_cols
+
+  for result in all_results:
+    image_url = result['image_url']
+    labels = [label for label, _ in result['labels']]  # Extract just labels
+    scores = [str(score) for _, score in result['labels']]  # Extract and convert scores to strings
+    # Pad labels and scores with empty strings to match max_labels
+    labels += [''] * (max_labels - len(labels))
+    scores += [''] * (max_labels - len(scores))
+    final_results.append(dict(zip(all_cols, [image_url] + labels + scores)))
+  return final_results
+
+# Reshape data
+all_results = reshape_results(all_results)
+
+# Convert to DataFrame and save
+results_df = pd.DataFrame(all_results)
+final_output_file = os.path.join(config['output_dir'], "image_annotations.csv")
 results_df.to_csv(final_output_file, index=False)
 logging.info(f"All results saved to {final_output_file}")
 
 print(f"Analysis completed. Results saved to {final_output_file}")
+
+
