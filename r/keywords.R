@@ -1,11 +1,32 @@
+#' Process and Update Tweet Data with Keywords and Filtering
+#'
+#' This script reads and processes data from two Excel files. It updates tweet data with keyword counts, 
+#' filters out labels and scores based on a threshold, and writes the results to a new Excel file with 
+#' separate sheets for filtered and classified data.
+#'
+#' Steps:
+#' 1. Load necessary libraries.
+#' 2. Define file paths using environment variables.
+#' 3. Read the data from the specified Excel files.
+#' 4. Process the data to count occurrences of keywords from a predefined list.
+#' 5. Filter out labels and scores below a specified threshold.
+#' 6. Write the updated data to a new Excel file with separate sheets for filtered and classified data.
+#'
+#' @author EcoStack Innovations
+#' @date July 2024
+#' @return An updated Excel file named as specified in the environment variable, containing two sheets: 
+#' "Filtered" with data meeting the filtering criteria and "Classification" with original and keyword count data.
+#'
+#' @details Ensure that the environment variables are correctly set to point to the appropriate file paths.
+
 # Load necessary libraries
 library(readxl)       # For reading Excel files
 library(dplyr)        # For data manipulation
 library(openxlsx)     # For writing Excel files
 
-# Define file paths
-input_file_path <- "C:/Ecostack/Projects/01_Selina/selina/output/Analysis/Mt_tweets_labels.xlsx"
-keywords_file_path <- "C:/Ecostack/Projects/01_Selina/selina/output/Analysis/Keywords.xlsx"
+# Define file paths using environment variables
+input_file_path <- Sys.getenv("INPUT_FILE_PATH")  # Path to the resulting Excel file
+keywords_file_path <- Sys.getenv("KEYWORDS_FILE_PATH")  # Path to the Keywords Excel file
 
 # Step 1: Read the data from the resulting Excel file
 merged_data <- read_excel(input_file_path)
