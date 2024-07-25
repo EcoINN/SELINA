@@ -9,14 +9,12 @@
 #' @date "January 2024"
 #' @return A spatial object with aggregated social media data for each grid cell in Malta
 
-
-
 # Load necessary libraries
 library(sf)         # for handling spatial data
 library(dplyr)      # for data manipulation
-library(purrr)
-
-
+library(purrr)      # for functional programming
+library(raster)     # for raster data handling
+library(tmaptools)  # for common extent functions
 
 #' Reading and Preparing Data
 #'
@@ -32,20 +30,29 @@ library(purrr)
 #' @param inaturalist_shp_path File path to the iNaturalist data shapefile.
 #' @param grid_shp_path File path to the grid layer shapefile.
 
+# Load environment variables
+twitter_shp_path <- Sys.getenv("TWITTER_SHP_PATH")
+flickr_shp_path <- Sys.getenv("FLICKR_SHP_PATH")
+inaturalist_shp_path <- Sys.getenv("INATURALIST_SHP_PATH")
+grid_shp_path <- Sys.getenv("GRID_SHP_PATH")
+wet_ndvi_raster_path <- Sys.getenv("WET_NDVI_RASTER_PATH")
+dry_ndvi_raster_path <- Sys.getenv("DRY_NDVI_RASTER_PATH")
+dem_raster_path <- Sys.getenv("DEM_RASTER_PATH")
+slope_raster_path <- Sys.getenv("SLOPE_RASTER_PATH")
+output_shp_path <- Sys.getenv("OUTPUT_SHP_PATH")
+updated_grid_layer_path <- Sys.getenv("UPDATED_GRID_LAYER_PATH")
 
 # Load the shapefiles
-twitter <- st_read("C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/twitter.shp")
-flickr <- st_read("C:/Ecostack/02_Projects/01_Selina/selina/data/Flickr/PUD.shp")
-inaturalist <- st_read("C:/Ecostack/02_Projects/01_Selina/selina/data/iNaturalist/iNaturalist.shp")
-grid <- st_read("C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/grid.shp")
+twitter <- st_read(twitter_shp_path)
+flickr <- st_read(flickr_shp_path)
+inaturalist <- st_read(inaturalist_shp_path)
+grid <- st_read(grid_shp_path)
 
 # Use the grid's CRS as the target CRS
-crs_target <- st_crs(grid) 
+crs_target <- st_crs(grid)
 twitter_data <- st_transform(twitter, crs_target)
 flickr_data <- st_transform(flickr, crs_target)
 inaturalist_data <- st_transform(inaturalist, crs_target)
-
-
 
 #' Performing Spatial Joins and Aggregating Data
 #'
@@ -61,9 +68,9 @@ inaturalist_data <- st_transform(inaturalist, crs_target)
 #' @return A data frame with aggregated counts for each social media platform and total counts for each grid cell.
 
 # Performing spatial joins
-twitter_grid_join <- st_join(grid, twitter_data)
-flickr_grid_join <- st_join(grid, flickr_data)
-inaturalist_grid_join <- st_join(grid, inaturalist_data)
+twitter_grid_join <- st_join(grid, twitter_data, join = st_intersects)
+flickr_grid_join <- st_join(grid, flickr_data, join = st_intersects)
+inaturalist_grid_join <- st_join(grid, inaturalist_data, join = st_intersects)
 
 # Aggregating data
 twitter_aggregated <- twitter_grid_join %>%
@@ -92,8 +99,6 @@ combined_aggregated[is.na(combined_aggregated)] <- 0
 combined_aggregated <- combined_aggregated %>%
   mutate(total_count = twitter_count + flickr_count + inaturalist_count)
 
-
-
 #' Finalizing the Spatial Object
 #'
 #' This final section merges the combined aggregated data with the original grid layer to create
@@ -109,12 +114,10 @@ combined_aggregated <- combined_aggregated %>%
 final_grid <- left_join(grid, combined_aggregated, by = "PageNumber")
 
 # Ensuring the final object is spatial
-final_grid <- st_as_sf(final_grid)
+final_grid_sf <- st_as_sf(final_grid)
 
 # Now you can write the final grid to a new Shapefile
-st_write(final_grid, "C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/final_grid.shp")
-
-
+st_write(final_grid_sf, output_shp_path)
 
 #' Reading and Preparing Raster and Grid Data
 #'
@@ -132,11 +135,10 @@ st_write(final_grid, "C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/fin
 #' @param grid_shp_path File path to the grid layer shapefile.
 
 # Reading the raster and grid data
-wet_ndvi_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/NDVI/wet/2023_wet_ndvi.tif")
-dry_ndvi_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/NDVI/dry/2023_dry_ndvi.tif")
-dem_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/dem_msk.tif")
-slope_raster <- raster("C:/Ecostack/02_Projects/01_Selina/Data/slope.tif")
-grid_layer <- st_read("C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/final_grid.shp")
+wet_ndvi_raster <- raster(wet_ndvi_raster_path)
+dry_ndvi_raster <- raster(dry_ndvi_raster_path)
+dem_raster <- raster(dem_raster_path)
+slope_raster <- raster(slope_raster_path)
 
 # Calculate the overlapping extent manually
 xmin_common <- max(426220, 426220, 426169.9, 425864.3)
@@ -146,8 +148,6 @@ ymax_common <- min(3993410, 3993410, 3993627, 3993877)
 
 # Create the common extent
 common_extent_manual <- extent(xmin_common, xmax_common, ymin_common, ymax_common)
-class(common_extent_manual)
-print(common_extent_manual)
 
 # Clipping rasters to the common extent
 wet_ndvi_raster_cropped <- crop(wet_ndvi_raster, common_extent_manual)
@@ -155,10 +155,8 @@ dry_ndvi_raster_cropped <- crop(dry_ndvi_raster, common_extent_manual)
 dem_raster_cropped <- crop(dem_raster, common_extent_manual)
 slope_raster_cropped <- crop(slope_raster, common_extent_manual)
 
-# Assuming all rasters have the same CRS
-grid_layer <- st_transform(grid_layer, crs(wet_ndvi_raster_cropped))
-
-
+# Transform the grid layer to match the CRS of the rasters
+grid_layer <- st_transform(grid, crs(wet_ndvi_raster_cropped))
 
 #' Extracting Environmental Variables
 #'
@@ -185,8 +183,6 @@ grid_layer$avg_dry_ndvi <- avg_dry_ndvi[, 1]
 grid_layer$avg_dem <- avg_dem[, 1]
 grid_layer$avg_slope <- avg_slope[, 1]
 
-
-
 #' Finalizing and Saving the Spatial Object
 #'
 #' The final step involves saving the updated grid layer with the environmental variables
@@ -195,4 +191,4 @@ grid_layer$avg_slope <- avg_slope[, 1]
 #' @return The final spatial object saved as a shapefile.
 
 # Saving the updated grid layer
-st_write(grid_layer, "C:/Ecostack/02_Projects/01_Selina/selina_arcgis/output/updated_grid_layer.shp")
+st_write(grid_layer, updated_grid_layer_path)
