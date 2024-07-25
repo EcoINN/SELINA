@@ -159,3 +159,70 @@ plot_trigrams <- function(data, column, num_trigrams = 20) {
          y = "Frequency",
          title = paste("Most common trigrams in '", column, "' column"))
 }
+
+
+
+#' Geographical Analysis
+#'
+#' Utilizes the location data to visually map out visitation patterns.
+#'
+#' @param df A dataframe containing the visit data.
+#' @param date_col The column containing the date.
+#' @return A ggplot object displaying the visitation patterns on a map.
+#' @examples
+#' \dontrun{
+#'   geo_plot <- geographical_analysis(df = malta)
+#'   print(geo_plot)
+#' }
+
+
+geographical_analysis <- function(df, date_col = "created_at") {
+  # Ensure the date column is in the correct format
+  df[[date_col]] <- as.POSIXct(df[[date_col]], format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")
+  
+  # Extract the month, year and determine the season
+  df$month <- month(df[[date_col]])
+  df$year <- year(df[[date_col]])
+  df$season <- ifelse(df$month %in% 4:9, "Dry", "Wet")
+  
+  # Make sure longitude center is within -180 to 180
+  if(max(df$longitude) - min(df$longitude) > 180){
+    df$longitude[df$longitude < 0] <- df$longitude[df$longitude < 0] + 360
+  }
+  
+  # Get the center of the map
+  lat_center <- mean(df$latitude, na.rm = TRUE)
+  lon_center <- mean(df$longitude, na.rm = TRUE)
+  if(lon_center > 180) lon_center <- lon_center - 360
+  
+  leaflet(df) %>%
+    addProviderTiles("CartoDB.Positron") %>%
+    setView(lng = lon_center, lat = lat_center, zoom = 10) %>%
+    addCircleMarkers(
+      data = subset(df, season == "Dry"), 
+      lng = ~longitude, 
+      lat = ~latitude, 
+      color = "red", 
+      group = "Dry Season",
+      radius = 3,
+      popup = paste("Year: ", df$year, "<br>", "Season: ", df$season)
+    ) %>%
+    addCircleMarkers(
+      data = subset(df, season == "Wet"), 
+      lng = ~longitude, 
+      lat = ~latitude, 
+      color = "blue", 
+      group = "Wet Season",
+      radius = 3,
+      popup = paste("Year: ", df$year, "<br>", "Season: ", df$season)
+    ) %>%
+    addLayersControl(
+      overlayGroups = c("Dry Season", "Wet Season"),
+      options = layersControlOptions(collapsed = FALSE)
+    )
+}
+
+
+
+
+
