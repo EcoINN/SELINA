@@ -26,7 +26,7 @@ import yaml
 import requests
 
 # Load configuration from YAML file
-config_path = os.getenv('CONFIG_PATH', 'C:/Ecostack/Projects/01_Selina/selina/output/URLS/Python/config.yaml')
+config_path = os.getenv('CONFIG_PATH', 'config.yaml')
 with open(config_path, "r") as config_file:
     config = yaml.safe_load(config_file)
 
@@ -42,7 +42,7 @@ logging.basicConfig(
 api_key = config['api_key']
 
 # Read the CSV file
-input_csv_path = os.getenv('INPUT_CSV_PATH', 'C:/Ecostack/Projects/01_Selina/selina/output/URLS/input_images.csv')
+input_csv_path = os.getenv('INPUT_CSV_PATH', 'input_images.csv')
 df = pd.read_csv(input_csv_path)
 
 # Ensure the output directory exists
