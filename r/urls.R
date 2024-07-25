@@ -8,19 +8,19 @@
 #'
 #' @author "Ecostack Innovations"
 #' @date "April 2024"
-#' @return A CSV file named 'tweet_image_urls.csv' containing the original tweet URLs and their corresponding
+#' @return A CSV file named 'extracted_image_urls.csv' containing the original tweet URLs and their corresponding
 #' image URLs, if any. This file will be saved in the working directory.
 
 # Load necessary libraries
-library(RSelenium)
-library(readxl)
-library(xml2)
-library(wdman)
+library(RSelenium)   # For interacting with the Selenium server
+library(readxl)      # For reading Excel files
+library(xml2)        # For parsing HTML/XML content
+library(wdman)       # For managing the WebDriver
 
 # Function to connect to the running Selenium server
 connect_rsDriver <- function() {
-  # Specify the path to the GeckoDriver executable
-  geckodriver <- "C:/Users/ecost/AppData/Local/binman/binman_geckodriver/win64/0.34.0/geckodriver.exe"
+  # Specify the path to the GeckoDriver executable using environment variable
+  geckodriver <- Sys.getenv("GECKODRIVER_PATH")
   
   # Initialize remote driver with specified GeckoDriver path and browserName "firefox"
   remDr <- remoteDriver(
@@ -123,8 +123,8 @@ fetch_image_urls <- function(driver, tweet_url, max_retry = 2) {
 # Connect to the running Selenium server
 remDr <- connect_rsDriver()
 
-# Read Excel file containing URLs
-tweets_data <- read_excel("C:/Ecostack/Projects/01_Selina/selina/Mt_tweets.xlsx")
+# Read Excel file containing URLs using environment variable
+tweets_data <- read_excel(Sys.getenv("TWEETS_EXCEL_PATH"))
 tweet_urls <- tweets_data$url_1
 
 # Store image URLs
@@ -150,8 +150,8 @@ image_urls_flat <- sapply(image_urls, function(urls) {
 # Create the data frame
 output_df <- data.frame(tweet_url = tweet_urls, image_url = image_urls_flat, stringsAsFactors = FALSE)
 
-# Write to CSV
-write.csv(output_df, "extracted_image_urls.csv", row.names = FALSE)
+# Write to CSV using environment variable
+write.csv(output_df, Sys.getenv("OUTPUT_CSV_PATH"), row.names = FALSE)
 
 # Close browser session
 tryCatch({
