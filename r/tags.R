@@ -7,7 +7,7 @@
 #'
 #' @author "Ecostack Innovations"
 #' @date "July 2024"
-#' @return An Excel file named 'Mt_tweets_updated.xlsx' containing the original tweet data along with additional
+#' @return An Excel file named 'Mt_tweets_labels.xlsx' containing the original tweet data along with additional
 #' columns for extracted image URLs and their corresponding labels. This file will be saved in the specified output directory.
 
 # Load necessary libraries
