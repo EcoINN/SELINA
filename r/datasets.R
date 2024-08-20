@@ -99,7 +99,7 @@ combined_aggregated[is.na(combined_aggregated)] <- 0
 combined_aggregated <- combined_aggregated %>%
   mutate(total_count = twitter_count + flickr_count + inaturalist_count)
 
-#' Finalizing the Spatial Object
+#' Finalising the Spatial Object
 #'
 #' This final section merges the combined aggregated data with the original grid layer to create
 #' a spatial object that includes both the geometry of the grid and the aggregated social media data.
@@ -183,7 +183,7 @@ grid_layer$avg_dry_ndvi <- avg_dry_ndvi[, 1]
 grid_layer$avg_dem <- avg_dem[, 1]
 grid_layer$avg_slope <- avg_slope[, 1]
 
-#' Finalizing and Saving the Spatial Object
+#' Finalising and Saving the Spatial Object
 #'
 #' The final step involves saving the updated grid layer with the environmental variables
 #' as a new shapefile for further use in spatial analysis or visualization.
