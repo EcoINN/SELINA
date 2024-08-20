@@ -241,21 +241,7 @@ table(hotspot_df$hotspot_type)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#'Testing plots
 # Plots
 plot_words(malta, "lemmatized_text", 10)
 plot_bigrams(malta, "lemmatized_text", 10)
@@ -276,14 +262,12 @@ results <- time_series_analysis(seasonal_tweets)
 
 
 
+#' Testing analysis
 # Frequency analysis
 season_counts <- temporal_analysis(malta, "created_at")
 geographical_analysis(malta)
 
-
-
-
-# First, you will need to create a new dataframe filtered for the top 10 places by number of visits
+# Create a new dataframe filtered for the top 10 places by number of visits
 top_places <- malta %>%
   count(places) %>%
   arrange(desc(n)) %>%
